@@ -363,15 +363,10 @@
                 [disabled]="isUpdatingMaintenance || !maintenanceStatus?.enabled || hasRunningRestoreJobs()">
               </button>
             </div>
-            <div *ngIf="maintenanceStatus?.enabled" class="maintenance-note">
-              <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--cyan flex-shrink-0">
-                <i class="pi pi-info-circle"></i>
-              </div>
-              <span>
+            <app-page-note *ngIf="maintenanceStatus?.enabled" class="mb-0">
                 {{ 'maintenance_enabled_note' | translate }}
                 <span *ngIf="maintenanceStatus?.message"> - {{ maintenanceStatus?.message }}</span>
-              </span>
-            </div>
+            </app-page-note>
           </div>
 
           <!-- Step 3 — pick a backup and start the restore -->

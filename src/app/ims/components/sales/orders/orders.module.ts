@@ -49,6 +49,8 @@ import { CheckboxModule } from 'primeng/checkbox';
 import { StepsModule } from 'primeng/steps';
 import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
 import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/shop-form-dialog.module';
+import { FormAddButtonComponent } from 'src/app/shared/form-add-button';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 @NgModule({
     imports: [
         CommonModule,
@@ -94,8 +96,10 @@ import { ShopFormDialogModule } from '../../inventory/shops/shop-form-dialog/sho
         CheckboxModule,
         StepsModule,
         InventorySharedModule,
-        ShopFormDialogModule
-    ],
+            ShopFormDialogModule,
+                FormAddButtonComponent,
+                PageNoteComponent
+            ],
     declarations: [OrdersComponent, FilterProductsPipe, DisableDblClickDirective, OrdersTableComponent, OrderDetailsPageComponent, OrderDeleteDialogComponent],
     providers: [ReportingService]
 })

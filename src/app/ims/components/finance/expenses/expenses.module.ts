@@ -27,6 +27,7 @@ import { DividerModule } from 'primeng/divider';
 import { MessageModule } from 'primeng/message';
 import { ExpenseDetailsPageComponent } from './expense-details-page/expense-details-page.component';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 
 
 @NgModule({
@@ -55,7 +56,8 @@ import { SharedModule } from 'src/app/shared/shared.module';
         TabViewModule,
         DividerModule,
         MessageModule,
-        SharedModule
+        SharedModule,
+        PageNoteComponent
     ],
     declarations: [ExpensesComponent, ExpenseDetailsPageComponent],
     providers: [ReportingService],

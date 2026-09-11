@@ -122,6 +122,8 @@ export class PurchasePaymentsComponent implements OnInit {
   isExporting: boolean = false;
   exportProgress: string = '';
   isBankAccountsFeatureEnabled: boolean = true;
+  /** Payment vouchers are financial documents (PRO+); STARTER keeps proof-of-payment attachments. */
+  financialDocumentsLicensed: boolean = false;
 
   constructor(private messageService: MessageService,
     private paymentService: PaymentService,
@@ -409,9 +411,11 @@ export class PurchasePaymentsComponent implements OnInit {
     try {
       await this.licenseCapabilitiesService.ensureLoaded();
       this.isBankAccountsFeatureEnabled = this.licenseCapabilitiesService.isFeatureEnabled('BANK_ACCOUNTS');
+      this.financialDocumentsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('FINANCIAL_DOCUMENTS');
     } catch (error) {
       console.warn('Unable to resolve license capabilities for bank account methods.', error);
       this.isBankAccountsFeatureEnabled = true;
+      this.financialDocumentsLicensed = true;
     }
   }
 

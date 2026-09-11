@@ -18,6 +18,8 @@ import { GalleriaModule } from 'primeng/galleria';
 import { CheckboxModule } from 'primeng/checkbox';
 import { CalendarModule } from 'primeng/calendar';
 import { TooltipModule } from 'primeng/tooltip';
+import { FieldHelpComponent } from 'src/app/shared/field-help';
+import { FormAddButtonComponent } from 'src/app/shared/form-add-button';
 import { RippleModule } from 'primeng/ripple';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 
@@ -34,6 +36,7 @@ import { SupplierDeleteDialogComponent } from '../../purchases/suppliers/supplie
 import { VariantProductPickerComponent } from './variant-product-picker/variant-product-picker.component';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { MessageModule } from 'primeng/message';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 
 @NgModule({
   declarations: [
@@ -65,10 +68,13 @@ import { MessageModule } from 'primeng/message';
     CheckboxModule,
     CalendarModule,
     TooltipModule,
+    FieldHelpComponent,
+    FormAddButtonComponent,
     RippleModule,
     ProgressSpinnerModule,
     AutoCompleteModule,
     MessageModule,
+    PageNoteComponent,
   ],
   exports: [
     CategoryFormDialogComponent,

@@ -101,22 +101,16 @@
           A group this deployment cannot produce. Deliberately NOT an empty table of zeros: in a
           performance report a zero reads as "this person did nothing".
         -->
-        <p-message
-          severity="info"
-          *ngIf="!data.available"
-          styleClass="w-full mb-4"
-          [text]="('staff_kpi_unavailable_title' | translate) + ' — ' + (unavailableMessageKey | translate)">
-        </p-message>
+        <app-page-note *ngIf="!data.available">
+            {{ 'staff_kpi_unavailable_title' | translate }} — {{ unavailableMessageKey | translate }}
+        </app-page-note>
 
         <ng-container *ngIf="data.available">
 
           <!-- Thin history: makes a pre-backfill period visible instead of silently skewing ranks -->
-          <p-message
-            severity="warn"
-            *ngIf="showUnattributedWarning"
-            styleClass="w-full mb-4"
-            [text]="('staff_kpi_unattributed_warning' | translate) + ' (' + unattributedPercent + '%)'">
-          </p-message>
+          <app-page-note *ngIf="showUnattributedWarning" tone="warning">
+              {{ 'staff_kpi_unattributed_warning' | translate }} ({{ unattributedPercent }}%)
+          </app-page-note>
 
           <!-- Headline tiles -->
           <div class="grid mb-4" *ngIf="headlineKeys.length && data.rows.length > 0">

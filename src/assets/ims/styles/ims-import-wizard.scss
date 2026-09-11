@@ -502,10 +502,7 @@
   border: 1px solid color-mix(in srgb, var(--red-500) 30%, transparent);
 }
 
-.import-alert--warn {
-  background: color-mix(in srgb, var(--yellow-500) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--yellow-500) 35%, transparent);
-}
+/* .import-alert--warn colours come from the shared note style in ims-form-sections.scss. */
 
 .import-progress-panel {
   display: flex;

@@ -219,7 +219,7 @@ export class ReturnDetailsPageComponent implements OnInit, OnDestroy {
     switch (method) {
       case 'Cash': return 'pi pi-money-bill';
       case 'Card': return 'pi pi-credit-card';
-      case 'Transfer': return 'pi pi-bank';
+      case 'Transfer': return 'pi pi-building';
       case 'Check': return 'pi pi-file-edit';
       case 'BOE': return 'pi pi-file-edit';
       default: return 'pi pi-dollar';

@@ -8,6 +8,7 @@ import { DropdownModule } from 'primeng/dropdown';
 import { ChartModule } from 'primeng/chart';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
 import { CalendarModule } from 'primeng/calendar';
@@ -60,6 +61,7 @@ import { InventoryStatusComponent } from 'src/app/shared/components/inventory-st
     ChartModule,
     ProgressSpinnerModule,
     MessageModule,
+    PageNoteComponent,
     ButtonModule,
     RippleModule,
     CalendarModule,

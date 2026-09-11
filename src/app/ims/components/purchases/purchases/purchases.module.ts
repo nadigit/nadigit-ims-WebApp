@@ -39,6 +39,8 @@ import { InventorySharedModule } from '../../inventory/shared/inventory-shared.m
 import { CategoriesModule } from '../../inventory/categories/categories.module';
 import { StepsModule } from 'primeng/steps';
 import { AutoCompleteModule } from 'primeng/autocomplete';
+import { FormAddButtonComponent } from 'src/app/shared/form-add-button';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 
 @NgModule({
     imports: [
@@ -77,8 +79,10 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
         InventorySharedModule,
         CategoriesModule,
         StepsModule,
-        AutoCompleteModule
-    ],
+            AutoCompleteModule,
+                FormAddButtonComponent,
+                PageNoteComponent
+            ],
     declarations: [PurchasesComponent, PurchaseDetailsPageComponent, PurchaseImportComponent],
     providers: [ReportingService],
 })

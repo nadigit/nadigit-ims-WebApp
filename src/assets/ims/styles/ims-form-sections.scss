@@ -75,6 +75,18 @@
   align-items: start;
 }
 
+/*
+ * THE info / warning note — the only one. Pages (<app-page-note>), form dialogs (.ims-form-callout)
+ * and the import wizard's warnings all render through these rules.
+ *
+ * There used to be three: a grey page note, this blue form callout, and PrimeNG <p-message> boxes.
+ * The grey one was also invisible on detail pages, whose background is the same grey — the same
+ * sentence looked like a card on the transfers list and like a faint outline on the transfer itself.
+ * A tint reads on both a white card and a grey page.
+ *
+ * Errors and success confirmations are not notes and keep their own treatment.
+ */
+.ims-note,
 .ims-form-callout {
   display: flex;
   align-items: flex-start;
@@ -88,10 +100,26 @@
   color: var(--text-color-secondary);
 }
 
+.ims-note > .pi,
 .ims-form-callout > i {
   color: var(--primary-color);
   margin-top: 0.125rem;
   flex-shrink: 0;
+}
+
+.ims-note__text {
+  min-width: 0;
+}
+
+.ims-note--warning,
+.import-alert--warn {
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  background: rgba(245, 158, 11, 0.09);
+}
+
+.ims-note--warning > .pi,
+.import-alert--warn > .pi {
+  color: var(--orange-500, #f97316);
 }
 
 .ims-form-radio-group {
@@ -122,20 +150,43 @@
   row-gap: 0.625rem;
 }
 
-/* Tighten PrimeFlex grid gutters inside form sections */
+/*
+ * Tighten PrimeFlex grid gutters inside form sections.
+ *
+ * Vertical spacing only. PrimeFlex columns are percentage widths (md:col-6 is exactly 50%) and
+ * expect their gutter from padding; a horizontal `gap` on top of two 50% columns adds up to more
+ * than 100%, so the second one always wrapped. Every "two fields side by side" pair in every form
+ * dialog rendered as two half-width fields on separate lines — expense date and amount, cheque
+ * number and expiry, buying and selling price.
+ */
+$ims-form-gutter: 0.3125rem;
+
 .ims-form-section .grid.ims-form-section__body,
 .ims-form-section__body .grid {
+  margin-top: 0;
+  row-gap: 0.625rem;
+  column-gap: 0;
+}
+
+/* The section body is itself the grid: trim its side padding by the gutter so text stays 1rem in. */
+.ims-form-section .grid.ims-form-section__body {
   margin-right: 0;
   margin-left: 0;
-  margin-top: 0;
-  gap: 0.625rem;
+  padding-left: calc(1rem - #{$ims-form-gutter});
+  padding-right: calc(1rem - #{$ims-form-gutter});
+}
+
+/* A grid nested inside a body: pull it out by the gutter so its fields line up with their neighbours. */
+.ims-form-section__body .grid {
+  margin-right: -$ims-form-gutter;
+  margin-left: -$ims-form-gutter;
 }
 
 .ims-form-section .grid.ims-form-section__body > [class*='col-'],
 .ims-form-section .grid.ims-form-section__body > .field,
 .ims-form-section__body .grid > [class*='col-'],
 .ims-form-section__body .grid > .field {
-  padding: 0;
+  padding: 0 $ims-form-gutter;
 }
 
 .ims-form-section__body--stack {
@@ -261,6 +312,45 @@
   font-size: 0.75rem;
   line-height: 1.4;
   color: var(--text-color-secondary);
+}
+
+/*
+ * Tooltip body for <app-field-help>. The tooltip is appended to <body>, out of reach of component
+ * styles, so it lives here. Help text is sentences rather than one-word labels: wider, and readable.
+ */
+.p-tooltip.field-help-tooltip {
+  max-width: min(22rem, 90vw);
+}
+
+.p-tooltip.field-help-tooltip .p-tooltip-text {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.field-help-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.field-help-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.field-help-list li .pi {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.field-help-list__warn .pi {
+  color: var(--orange-300, #fdba74);
 }
 
 .ims-form-section {

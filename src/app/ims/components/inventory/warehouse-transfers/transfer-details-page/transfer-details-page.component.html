@@ -1,19 +1,6 @@
 ﻿<div class="transfer-details-container">
     <p-toast></p-toast>
 
-    <p-message *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" severity="info" styleClass="mb-3 w-full"
-        [closable]="false" [text]="'warehouse_transfer_manual_workflow_hint' | translate"></p-message>
-
-    <div *ngIf="transferAutoApply && isAdmin && !isLoading" class="mx-3 mt-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
-        <i class="pi pi-info-circle mt-1"></i>
-        <span>{{ 'warehouse_transfer_auto_apply_hint' | translate }}</span>
-    </div>
-
-    <div *ngIf="activityProfileService.emphasizeBatchAndExpiry && !isLoading" class="mx-3 mt-3 p-3 border-round surface-border border-1 surface-ground text-600 text-sm flex align-items-start gap-2">
-        <i class="pi pi-box mt-1 flex-shrink-0"></i>
-        <span>{{ 'activity_profile_hint_warehouse_transfer' | translate }}</span>
-    </div>
-
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
         <div class="loading-content">
@@ -23,6 +10,15 @@
 
     <!-- Main Content -->
     <div class="transfer-content" *ngIf="!isLoading && transfer">
+        <app-page-note *ngIf="transferWorkflowConfigLoaded && !transferAutoApply" class="mt-3">
+            {{ 'warehouse_transfer_manual_workflow_hint' | translate }}
+        </app-page-note>
+        <app-page-note *ngIf="transferAutoApply && isAdmin" class="mt-3">
+            {{ 'warehouse_transfer_auto_apply_hint' | translate }}
+        </app-page-note>
+        <app-page-note *ngIf="activityProfileService.emphasizeBatchAndExpiry" icon="pi-box" class="mt-3">
+            {{ 'activity_profile_hint_warehouse_transfer' | translate }}
+        </app-page-note>
         
         <!-- Hero Header Section -->
         <div class="transfer-hero">
@@ -52,14 +48,14 @@
                             </div>
                             <div class="flex flex-wrap align-items-center gap-4 text-500">
                                 <span class="flex align-items-center gap-2" *ngIf="transfer.sourceWarehouse?.name">
-                                    <i class="pi pi-warehouse"></i>
+                                    <i class="pi pi-home"></i>
                                     {{ transfer.sourceWarehouse.name }}
                                 </span>
                                 <span class="flex align-items-center gap-2">
                                     <i class="pi pi-arrow-right"></i>
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="transfer.destinationWarehouse?.name">
-                                    <i class="pi pi-warehouse"></i>
+                                    <i class="pi pi-home"></i>
                                     {{ transfer.destinationWarehouse.name }}
                                 </span>
                                 <span class="flex align-items-center gap-2" *ngIf="transfer.transferDate">
@@ -199,7 +195,7 @@
                         <!-- Warehouses Card -->
                         <div class="detail-card mb-4">
                             <div class="card-header">
-                                <i class="pi pi-warehouse"></i>
+                                <i class="pi pi-home"></i>
                                 <span>{{ 'warehouses' | translate }}</span>
                             </div>
                             <div class="card-body">

@@ -413,7 +413,7 @@
                       <i [class]="m.type === 'DEPOSIT' ? 'pi pi-arrow-down text-green-500' :
                                  (m.type === 'WITHDRAWAL' ? 'pi pi-arrow-up text-red-500' :
                                  (m.type === 'EXPENSE' ? 'pi pi-minus-circle text-orange-500' :
-                                 'pi pi-adjust text-blue-500'))"></i>
+                                 'pi pi-sliders-h text-blue-500'))"></i>
                       <p-tag [value]="('movement_' + (m.type || '').toLowerCase()) | translate"
                         [severity]="m.type === 'DEPOSIT' ? 'success' :
                                    (m.type === 'WITHDRAWAL' ? 'danger' :

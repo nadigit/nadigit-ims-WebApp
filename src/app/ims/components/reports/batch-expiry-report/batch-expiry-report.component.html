@@ -16,8 +16,9 @@
       </div>
 
       <!-- Not available (feature not in plan) -->
-      <p-message *ngIf="!available" severity="warn" styleClass="w-full mb-3"
-        [text]="'batch_expiry_not_in_plan' | translate"></p-message>
+      <app-page-note *ngIf="!available" tone="warning">
+          {{ 'batch_expiry_not_in_plan' | translate }}
+      </app-page-note>
 
       <ng-container *ngIf="available">
         <div class="reports-filter-bar flex gap-3 mb-4 flex-wrap align-items-end p-3 surface-ground border-round">

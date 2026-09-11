@@ -1237,7 +1237,7 @@ export class CustomersComponent implements OnInit {
     switch (method) {
       case 'CASH': return 'pi pi-money-bill';
       case 'CARD': return 'pi pi-credit-card';
-      case 'TRANSFER': return 'pi pi-bank';
+      case 'TRANSFER': return 'pi pi-building';
       case 'CHECK': return 'pi pi-file';
       default: return 'pi pi-wallet';
     }

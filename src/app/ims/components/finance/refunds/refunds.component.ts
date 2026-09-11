@@ -1377,7 +1377,7 @@ export class RefundsComponent implements OnInit {
     switch (method) {
       case 'Cash': return 'pi pi-money-bill';
       case 'Card': return 'pi pi-credit-card';
-      case 'Transfer': return 'pi pi-bank';
+      case 'Transfer': return 'pi pi-building';
       case 'Check': return 'pi pi-file';
       case 'BOE': return 'pi pi-file';
       case 'DIGITAL_WALLET': return 'pi pi-mobile';

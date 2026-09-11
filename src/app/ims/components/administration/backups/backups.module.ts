@@ -11,6 +11,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TagModule } from 'primeng/tag';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { TooltipModule } from 'primeng/tooltip';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
@@ -31,6 +32,7 @@ import { TranslateModule } from '@ngx-translate/core';
     TagModule,
     ProgressSpinnerModule,
     TooltipModule,
+    PageNoteComponent,
     CardModule,
     DropdownModule,
     CheckboxModule,

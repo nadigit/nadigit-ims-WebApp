@@ -25,6 +25,7 @@ import { ImageModule } from 'primeng/image';
 import { TranslateModule } from '@ngx-translate/core';
 import { SpeedDialModule } from 'primeng/speeddial';
 import { MessageModule } from 'primeng/message';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { ScrollerModule } from 'primeng/scroller';
 import { SplitButtonModule } from 'primeng/splitbutton';
 import { DividerModule } from 'primeng/divider';
@@ -64,6 +65,7 @@ import { InventorySharedModule } from '../inventory/shared/inventory-shared.modu
     TranslateModule,
     SpeedDialModule,
     MessageModule,
+    PageNoteComponent,
     ScrollerModule,
     SplitButtonModule,
     DividerModule,

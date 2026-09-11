@@ -7,8 +7,9 @@
   </div>
   <p class="text-600 text-sm m-0 mb-3">{{ 'variant_picker_subtitle' | translate }}</p>
 
-  <p-message *ngIf="warehouseRequired" severity="warn" styleClass="w-full mb-3"
-    [text]="'variant_picker_warehouse_required' | translate"></p-message>
+  <app-page-note *ngIf="warehouseRequired" tone="warning">
+      {{ 'variant_picker_warehouse_required' | translate }}
+  </app-page-note>
 
   <div class="flex flex-column gap-3" [class.pointer-events-none]="disabled || warehouseRequired">
     <div class="field m-0">

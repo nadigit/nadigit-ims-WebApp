@@ -10,11 +10,12 @@
             </div>
         </div>
 
-        <p-message *ngIf="expenseConfigLoaded && requireApproval" severity="info" styleClass="mb-3 w-full" [closable]="false"
-            [text]="'expense_approval_workflow_hint' | translate"></p-message>
-
         <div class="card px-6 py-6">
             <p-toast></p-toast>
+
+            <app-page-note *ngIf="expenseConfigLoaded && requireApproval">
+                {{ 'expense_approval_workflow_hint' | translate }}
+            </app-page-note>
 
             <!-- Action Buttons -->
             <div class="ims-page-actions flex justify-content-end align-items-center mb-4">
@@ -321,12 +322,12 @@
                                         [ngClass]="{'ng-invalid ng-dirty' : submitted && !expense.shop}">
                                         <ng-template pTemplate="selectedItem">
                                             <span *ngIf="expense?.shop" class="flex align-items-center gap-2">
-                                                <i class="pi pi-shop"></i>{{ expense.shop.shopName }}
+                                                <i class="pi pi-shopping-bag"></i>{{ expense.shop.shopName }}
                                             </span>
                                         </ng-template>
                                         <ng-template let-option pTemplate="item">
                                             <span class="flex align-items-center gap-2">
-                                                <i class="pi pi-shop"></i>{{ option.shopName }}
+                                                <i class="pi pi-shopping-bag"></i>{{ option.shopName }}
                                             </span>
                                         </ng-template>
                                     </p-dropdown>

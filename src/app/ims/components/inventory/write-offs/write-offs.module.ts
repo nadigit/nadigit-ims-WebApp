@@ -31,6 +31,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { MessageModule } from 'primeng/message';
 import { ReportingService } from 'src/app/utils/reporting.service';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 @NgModule({
     imports: [
         CommonModule,
@@ -59,7 +60,8 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         ReactiveFormsModule,
         InputNumberModule,
         AutoCompleteModule,
-        MessageModule
+        MessageModule,
+        PageNoteComponent
     ],
     declarations: [WriteOffsComponent, WriteOffDetailsPageComponent, WriteOffCreateComponent],
     providers: [ConfirmationService, ReportingService]

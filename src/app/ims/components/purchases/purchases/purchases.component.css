@@ -107,18 +107,6 @@
   margin-bottom: 0.35rem;
 }
 
-.field-shortcut-link {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--primary-color);
-  text-decoration: none;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.field-shortcut-link:hover {
-  text-decoration: underline;
-}
 
 .purchase-items-wrapper {
   display: flex;

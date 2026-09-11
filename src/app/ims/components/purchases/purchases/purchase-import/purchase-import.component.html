@@ -855,7 +855,7 @@
                         <div class="flex-1 min-w-0">
                             <h3 class="import-section-title">{{ 'parsed_invoice_details' | translate }}</h3>
                             <p *ngIf="isParsedInvoiceAiEnhanced()" class="text-600 text-sm m-0 mt-2 line-height-3 flex align-items-start gap-2">
-                                <i class="pi pi-sparkles text-primary mt-1 flex-shrink-0"></i>
+                                <i class="pi pi-star text-primary mt-1 flex-shrink-0"></i>
                                 <span *ngIf="getParsedInvoiceAiProviderLabel(); else aiEnhancedHintGeneric">
                                     {{ 'purchase_import_ai_enhanced_hint' | translate: { provider: getParsedInvoiceAiProviderLabel() } }}
                                 </span>
@@ -865,7 +865,7 @@
                         <div class="flex align-items-center gap-2 flex-shrink-0 flex-wrap justify-content-end">
                             <p-tag
                                 *ngIf="isParsedInvoiceAiEnhanced()"
-                                icon="pi pi-sparkles"
+                                icon="pi pi-star"
                                 [value]="'purchase_import_ai_enhanced_badge' | translate"
                                 severity="info"
                                 styleClass="text-xs"></p-tag>
@@ -1127,7 +1127,7 @@
                     </div>
 
                     <div *ngIf="isParsedInvoiceAiEnhanced()" class="import-alert import-alert--warn mb-3">
-                        <i class="pi pi-sparkles mr-2"></i>
+                        <i class="pi pi-star mr-2"></i>
                         <span *ngIf="getParsedInvoiceAiProviderLabel(); else aiReviewHintGeneric">
                             {{ 'purchase_import_ai_enhanced_review_note' | translate: { provider: getParsedInvoiceAiProviderLabel() } }}
                         </span>

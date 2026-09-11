@@ -83,7 +83,7 @@
                             <button pButton pRipple icon="pi pi-file" 
                                 [label]="(salesDocumentChainMode ? (quoteDocNumber ? 'doc_chain_hero_open_quote' : 'doc_chain_hero_issue_quote') : (quoteDocNumber ? 'print_quote' : 'generate_quote')) | translate"
                                 class="p-button-secondary"
-                                *ngIf="isAdmin && order.orderStatus === 'Ordered' && isQuoteEligible()"
+                                *ngIf="financialDocumentsLicensed && isAdmin && order.orderStatus === 'Ordered' && isQuoteEligible()"
                                 [pTooltip]="(salesDocumentChainMode ? (quoteDocNumber ? 'doc_chain_hero_quote_tooltip_open' : 'doc_chain_hero_quote_tooltip_new') : (quoteDocNumber ? 'print_quote' : 'generate_quote')) | translate"
                                 [loading]="!quoteDocNumber && isGeneratingQuote"
                                 (click)="quoteDocNumber ? viewQuote() : generateQuote(order)"></button>
@@ -92,7 +92,7 @@
                             <button pButton pRipple icon="pi pi-shopping-cart" 
                                 [label]="(salesDocumentChainMode ? (purchaseOrderDocNumber ? 'doc_chain_hero_open_po' : 'doc_chain_hero_issue_po') : (purchaseOrderDocNumber ? 'view_purchase_order' : 'generate_purchase_order')) | translate"
                                 class="p-button-info"
-                                *ngIf="isAdmin && order.orderStatus === 'Processing' && isPurchaseOrderEligible()"
+                                *ngIf="financialDocumentsLicensed && isAdmin && order.orderStatus === 'Processing' && isPurchaseOrderEligible()"
                                 [pTooltip]="(salesDocumentChainMode ? (purchaseOrderDocNumber ? 'doc_chain_hero_po_tooltip_open' : 'doc_chain_hero_po_tooltip_new') : (purchaseOrderDocNumber ? 'view_purchase_order' : 'generate_purchase_order')) | translate"
                                 [loading]="!purchaseOrderDocNumber && isGeneratingPurchaseOrder"
                                 (click)="purchaseOrderDocNumber ? viewPurchaseOrder() : generatePurchaseOrder(order)"></button>
@@ -101,7 +101,7 @@
                             <button pButton pRipple icon="pi pi-truck" 
                                 [label]="(salesDocumentChainMode ? (deliveryOrderDocNumber ? 'doc_chain_hero_open_delivery' : 'doc_chain_hero_issue_delivery') : (deliveryOrderDocNumber ? 'view_delivery_order' : 'generate_delivery_order')) | translate"
                                 class="p-button-success"
-                                *ngIf="isAdmin && order.orderStatus === 'Delivered' && isDeliveryNoteEligible()"
+                                *ngIf="financialDocumentsLicensed && isAdmin && order.orderStatus === 'Delivered' && isDeliveryNoteEligible()"
                                 [pTooltip]="(salesDocumentChainMode ? (deliveryOrderDocNumber ? 'doc_chain_hero_delivery_tooltip_open' : 'doc_chain_hero_delivery_tooltip_new') : (deliveryOrderDocNumber ? 'view_delivery_order' : 'generate_delivery_order')) | translate"
                                 [loading]="!deliveryOrderDocNumber && isGeneratingDeliveryOrder"
                                 (click)="deliveryOrderDocNumber ? viewDeliveryOrder() : generateDeliveryOrder(order)"></button>
@@ -110,7 +110,7 @@
                             <button pButton pRipple icon="pi pi-print" 
                                 [label]="(salesDocumentChainMode ? (invoiceDocNumber ? 'doc_chain_hero_open_invoice' : 'doc_chain_hero_issue_invoice') : (invoiceDocNumber ? 'print_invoice' : 'generate_invoice')) | translate"
                                 class="p-button-help"
-                                *ngIf="isAdmin && (order.orderStatus === 'Completed' || invoiceDocNumber) && isInvoiceEligible()"
+                                *ngIf="financialDocumentsLicensed && isAdmin && (order.orderStatus === 'Completed' || invoiceDocNumber) && isInvoiceEligible()"
                                 [pTooltip]="(salesDocumentChainMode ? (invoiceDocNumber ? 'doc_chain_hero_invoice_tooltip_open' : 'doc_chain_hero_invoice_tooltip_new') : (invoiceDocNumber ? 'print_invoice' : 'generate_invoice')) | translate"
                                 [loading]="!invoiceDocNumber && isGeneratingInvoice"
                                 (click)="invoiceDocNumber ? viewInvoice() : generateInvoice(order)"></button>
@@ -506,7 +506,7 @@
                                     <button pButton pRipple icon="pi pi-file" 
                                         [label]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
                                         class="p-button-outlined p-button-secondary"
-                                        *ngIf="isAdmin && isQuoteEligible() && order.orderStatus !== 'Ordered'"
+                                        *ngIf="financialDocumentsLicensed && isAdmin && isQuoteEligible() && order.orderStatus !== 'Ordered'"
                                         [pTooltip]="quoteDocNumber ? ('print_quote' | translate) : ('generate_quote' | translate)"
                                         [loading]="!quoteDocNumber && isGeneratingQuote"
                                         (click)="quoteDocNumber ? viewQuote() : generateQuote(order)"></button>
@@ -515,7 +515,7 @@
                                     <button pButton pRipple icon="pi pi-file-edit" 
                                         [label]="proformaInvoiceDocNumber ? ('print_proforma_invoice' | translate) : ('generate_proforma_invoice' | translate)"
                                         class="p-button-outlined p-button-warning"
-                                        *ngIf="isAdmin && isInvoiceEligible()"
+                                        *ngIf="financialDocumentsLicensed && isAdmin && isInvoiceEligible()"
                                         [pTooltip]="proformaInvoiceDocNumber ? ('print_proforma_invoice' | translate) : ('preliminary_invoice_info' | translate)"
                                         [loading]="!proformaInvoiceDocNumber && isGeneratingProformaInvoice"
                                         (click)="proformaInvoiceDocNumber ? viewProformaInvoice() : generateProformaInvoice(order)"></button>
@@ -524,7 +524,7 @@
                                     <button pButton pRipple icon="pi pi-shopping-cart" 
                                         [label]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
                                         class="p-button-outlined p-button-info"
-                                        *ngIf="isAdmin && isPurchaseOrderEligible() && order.orderStatus !== 'Processing'"
+                                        *ngIf="financialDocumentsLicensed && isAdmin && isPurchaseOrderEligible() && order.orderStatus !== 'Processing'"
                                         [pTooltip]="purchaseOrderDocNumber ? ('view_purchase_order' | translate) : ('generate_purchase_order' | translate)"
                                         [loading]="!purchaseOrderDocNumber && isGeneratingPurchaseOrder"
                                         (click)="purchaseOrderDocNumber ? viewPurchaseOrder() : generatePurchaseOrder(order)"></button>
@@ -533,7 +533,7 @@
                                     <button pButton pRipple icon="pi pi-truck" 
                                         [label]="deliveryOrderDocNumber ? ('generate_delivery_order' | translate) : ('generate_delivery_order' | translate)"
                                         class="p-button-outlined p-button-success"
-                                        *ngIf="isAdmin && isDeliveryNoteEligible() && order.orderStatus !== 'Delivered'"
+                                        *ngIf="financialDocumentsLicensed && isAdmin && isDeliveryNoteEligible() && order.orderStatus !== 'Delivered'"
                                         [pTooltip]="deliveryOrderDocNumber ? ('generate_delivery_order' | translate) : ('generate_delivery_order' | translate)"
                                         [loading]="!deliveryOrderDocNumber && isGeneratingDeliveryOrder"
                                         (click)="deliveryOrderDocNumber ? viewDeliveryOrder() : generateDeliveryOrder(order)"></button>
@@ -542,7 +542,7 @@
                                     <button pButton pRipple icon="pi pi-print" 
                                         [label]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
                                         class="p-button-outlined p-button-help"
-                                        *ngIf="isAdmin && isInvoiceEligible() && order.orderStatus !== 'Completed' && !invoiceDocNumber"
+                                        *ngIf="financialDocumentsLicensed && isAdmin && isInvoiceEligible() && order.orderStatus !== 'Completed' && !invoiceDocNumber"
                                         [pTooltip]="invoiceDocNumber ? ('print_invoice' | translate) : ('generate_invoice' | translate)"
                                         [loading]="!invoiceDocNumber && isGeneratingInvoice"
                                         (click)="invoiceDocNumber ? viewInvoice() : generateInvoice(order)"></button>

@@ -18,25 +18,33 @@
 								{{ 'profile_mode_active' | translate }}:
 								{{ activityProfileService.profileLabelI18nKey() | translate }}
 							</span>
+							<!-- The profile's rules were a bulleted list above the form; save enforces them, so they wait behind the icon. -->
+							<app-field-help
+								*ngIf="activityProfileService.isPharmacyProfile || activityProfileService.isFashionProfile || activityProfileService.suggestRecipesOrComponents"
+								[text]="profileRules" position="bottom"
+								[tone]="(activityProfileService.isPharmacyProfile || activityProfileService.isFashionProfile) ? 'warn' : 'info'"
+								[ariaLabel]="'profile_mode_active' | translate"></app-field-help>
 						</div>
-						<ul class="product-form-profile-banner__list">
+					</div>
+					<ng-template #profileRules>
+						<ul class="field-help-list">
 							<li *ngIf="activityProfileService.isPharmacyProfile">
-								<i class="pi pi-check-circle"></i>{{ 'profile_mode_pharmacy_product_form' | translate }}
+								<i class="pi pi-check-circle"></i><span>{{ 'profile_mode_pharmacy_product_form' | translate }}</span>
 							</li>
 							<li *ngIf="activityProfileService.isFashionProfile">
-								<i class="pi pi-check-circle"></i>{{ 'profile_mode_fashion_product_form' | translate }}
+								<i class="pi pi-check-circle"></i><span>{{ 'profile_mode_fashion_product_form' | translate }}</span>
 							</li>
-							<li *ngIf="activityProfileService.isFashionProfile" class="product-form-profile-banner__warn">
-								<i class="pi pi-exclamation-circle"></i>{{ 'profile_mode_fashion_size_color_required' | translate }}
+							<li *ngIf="activityProfileService.isFashionProfile" class="field-help-list__warn">
+								<i class="pi pi-exclamation-circle"></i><span>{{ 'profile_mode_fashion_size_color_required' | translate }}</span>
 							</li>
-							<li *ngIf="activityProfileService.isPharmacyProfile" class="product-form-profile-banner__warn">
-								<i class="pi pi-exclamation-circle"></i>{{ 'profile_mode_pharmacy_expiration_required' | translate }}
+							<li *ngIf="activityProfileService.isPharmacyProfile" class="field-help-list__warn">
+								<i class="pi pi-exclamation-circle"></i><span>{{ 'profile_mode_pharmacy_expiration_required' | translate }}</span>
 							</li>
 							<li *ngIf="activityProfileService.suggestRecipesOrComponents">
-								<i class="pi pi-box"></i>{{ 'activity_profile_hint_recipes_components' | translate }}
+								<i class="pi pi-box"></i><span>{{ 'activity_profile_hint_recipes_components' | translate }}</span>
 							</li>
 						</ul>
-					</div>
+					</ng-template>
 				</div>
 				<!-- Left column — media + classification + expiration + costing -->
 				<div class="col-12 lg:col-6">
@@ -59,7 +67,6 @@
 									</div>
 									<div class="min-w-0">
 										<label for="productImage" class="product-media-title block m-0">{{'product_image' | translate}}</label>
-										<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'drag_drop_subtitle' | translate }}</p>
 									</div>
 								</div>
 								<span class="product-media-count-chip" *ngIf="productImages?.length || pendingPreviewUrls?.length">
@@ -131,6 +138,7 @@
 									<span class="text-sm font-semibold text-900">
 										{{ 'pending_upload_files_count' | translate: { count: pendingUploadFiles.length, current: selectedPendingIndex + 1 } }}
 									</span>
+									<app-field-help [text]="'pending_upload_primary_hint' | translate"></app-field-help>
 								</div>
 								<ul class="pending-files-list list-none m-0 p-0">
 									<li *ngFor="let f of pendingUploadFiles; let i = index"
@@ -144,9 +152,6 @@
 										<span class="text-xs text-500 whitespace-nowrap flex-shrink-0">{{ f.size | fileSize }}</span>
 									</li>
 								</ul>
-								<div class="px-3 py-2 text-xs text-600 border-top-1 surface-border">
-									{{ 'pending_upload_primary_hint' | translate }}
-								</div>
 							</div>
 
 							<!-- Pending local previews (new product, multi-select before save) -->
@@ -158,10 +163,9 @@
 									</div>
 									<div class="flex-1 min-w-0">
 										<div class="flex align-items-start justify-content-between gap-2 flex-wrap">
-											<h3 class="product-media-title m-0">{{ 'pending_upload_gallery_title' | translate: { count: pendingPreviewUrls.length } }}</h3>
+											<h3 class="product-media-title m-0">{{ 'pending_upload_gallery_title' | translate: { count: pendingPreviewUrls.length } }}<app-field-help [text]="'pending_upload_primary_hint' | translate"></app-field-help></h3>
 											<span class="product-media-count-chip">{{ pendingPreviewUrls.length }}</span>
 										</div>
-										<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'pending_upload_primary_hint' | translate }}</p>
 									</div>
 								</header>
 								<div class="gallery-grid">
@@ -208,10 +212,9 @@
 									</div>
 									<div class="flex-1 min-w-0">
 										<div class="flex align-items-start justify-content-between gap-2 flex-wrap">
-											<h3 class="product-media-title m-0">{{ 'product_image_gallery_title' | translate: { count: productImages.length } }}</h3>
+											<h3 class="product-media-title m-0">{{ 'product_image_gallery_title' | translate: { count: productImages.length } }}<app-field-help [text]="'gallery_drag_reorder_hint' | translate"></app-field-help></h3>
 											<span class="product-media-count-chip">{{ productImages.length }}</span>
 										</div>
-										<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{ 'gallery_drag_reorder_hint' | translate }}</p>
 									</div>
 								</header>
 								<div class="gallery-grid">
@@ -246,8 +249,7 @@
 							<div class="product-add-images mt-4 border-round-lg surface-ground border-1 surface-border p-3"
 								(drop)="onDrop($event)" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)"
 								[ngClass]="{'upload-dropzone--active': isDragOver}">
-								<div class="flex flex-column sm:flex-row align-items-center justify-content-between gap-3 flex-wrap">
-									<p class="text-sm text-600 m-0 flex-1 min-w-0">{{ 'add_product_images_hint' | translate }}</p>
+								<div class="flex align-items-center justify-content-center gap-2 flex-wrap">
 									<p-fileUpload mode="basic" name="productImageAdd" accept="image/*"
 										maxFileSize="5000000" (onSelect)="onFileUpload($event)"
 										[multiple]="true"
@@ -256,6 +258,7 @@
 										chooseIcon="pi pi-plus" [auto]="true" [showUploadButton]="false"
 										[showCancelButton]="false">
 									</p-fileUpload>
+									<app-field-help [text]="'add_product_images_hint' | translate"></app-field-help>
 								</div>
 							</div>
 						</div>
@@ -271,7 +274,6 @@
 										</div>
 										<div class="min-w-0">
 											<label for="productImage" class="product-media-title block m-0">{{'product_image' | translate}}</label>
-											<p class="product-media-subtitle text-sm text-600 m-0 mt-1 line-height-3">{{'drag_drop_subtitle' | translate}}</p>
 										</div>
 									</div>
 								</div>
@@ -350,11 +352,7 @@
 											{{ 'product_category' | translate }}
 											<span class="required-asterisk">*</span>
 										</label>
-										<button type="button" pButton pRipple icon="pi pi-plus"
-											class="p-button-rounded p-button-text p-button-sm ims-form-add-btn"
-											*ngIf="canAddCategory" (click)="openCategoryDialog()"
-											[pTooltip]="'add_new_category' | translate" tooltipPosition="top"
-											[attr.aria-label]="'add_new_category' | translate"></button>
+										<app-form-add-button *ngIf="canAddCategory" [label]="'add_new_category' | translate" (add)="openCategoryDialog()"></app-form-add-button>
 									</div>
 									<p-dropdown appendTo="body" inputId="category" [(ngModel)]="localProduct.category"
 										[ngModelOptions]="{standalone: true}" name="category" optionLabel="categoryName"
@@ -394,12 +392,9 @@
 										<label for="supplier" class="ims-form-label">
 											{{'product_supplier' | translate}}
 											<span class="required-asterisk" *ngIf="isProduct()">*</span>
-										</label>
-										<button type="button" pButton pRipple icon="pi pi-plus"
-											class="p-button-rounded p-button-text p-button-sm ims-form-add-btn"
-											*ngIf="canAddSupplier" (click)="openSupplierDialog()"
-											[pTooltip]="'add_new_supplier' | translate" tooltipPosition="top"
-											[attr.aria-label]="'add_new_supplier' | translate"></button>
+											<app-field-help *ngIf="isService()" [text]="'product_supplier_optional_services' | translate"></app-field-help>
+											</label>
+										<app-form-add-button *ngIf="canAddSupplier" [label]="'add_new_supplier' | translate" (add)="openSupplierDialog()"></app-form-add-button>
 									</div>
 									<p-dropdown appendTo="body" inputId="supplier" [(ngModel)]="localProduct.supplier"
 										[ngModelOptions]="{standalone: true}" name="supplier" dataKey="supplierId" optionLabel="name"
@@ -424,9 +419,6 @@
 									<small class="p-error" *ngIf="submitted && isProduct() && !localProduct.supplier">
 										{{'product_supplier' | translate}} {{'is_required_label' | translate}}
 									</small>
-									<small class="ims-form-field-note" *ngIf="isService()">
-										{{'product_supplier_optional_services' | translate}}
-									</small>
 								</div>
 
 								<!-- Warehouse -->
@@ -435,12 +427,10 @@
 										<label for="warehouse" class="ims-form-label">
 											{{'product_warehouse' | translate}}
 											<span class="required-asterisk">*</span>
-										</label>
-										<button type="button" pButton pRipple icon="pi pi-plus"
-											class="p-button-rounded p-button-text p-button-sm ims-form-add-btn"
-											*ngIf="canAddWarehouse && !isAggregatedEditMode()" (click)="openWarehouseDialog()"
-											[pTooltip]="'add_new_warehouse' | translate" tooltipPosition="top"
-											[attr.aria-label]="'add_new_warehouse' | translate"></button>
+											<app-field-help *ngIf="isAggregatedEditMode()" icon="lock" tone="warn"
+												[text]="'warehouse_locked_in_aggregated_mode' | translate"></app-field-help>
+											</label>
+										<app-form-add-button *ngIf="canAddWarehouse && !isAggregatedEditMode()" [label]="'add_new_warehouse' | translate" (add)="openWarehouseDialog()"></app-form-add-button>
 									</div>
 									<p-dropdown appendTo="body" inputId="warehouse" [(ngModel)]="localProduct.warehouse"
 										[ngModelOptions]="{standalone: true}" name="warehouse" optionLabel="name"
@@ -465,9 +455,6 @@
 									<small class="p-error" *ngIf="submitted && !localProduct.warehouse">
 										{{'product_warehouse' | translate}} {{'is_required_label' | translate}}
 									</small>
-									<small class="ims-form-field-note" *ngIf="isAggregatedEditMode()">
-										{{ 'warehouse_locked_in_aggregated_mode' | translate }}
-									</small>
 								</div>
 							</div>
 						</section>
@@ -487,10 +474,10 @@
 											[binary]="true" inputId="hasExpirationDate" (onChange)="onExpirationDateToggle()">
 										</p-checkbox>
 										<label for="hasExpirationDate" class="ims-form-label ims-form-label--inline cursor-pointer">
-											{{'product_has_expiration_date' | translate}}
-										</label>
-									</div>
-									<small class="ims-form-hint">{{ 'expiration_date_help_text' | translate }}</small>
+												{{'product_has_expiration_date' | translate}}
+											</label>
+											<app-field-help [text]="'expiration_date_help_text' | translate"></app-field-help>
+											</div>
 
 									<div *ngIf="hasExpirationDate" class="mt-3">
 										<label for="expirationDate" class="ims-form-label">
@@ -511,7 +498,6 @@
 										<small class="p-error" *ngIf="backendFieldErrors['expirationDate']">
 											{{ backendFieldErrors['expirationDate'] }}
 										</small>
-										<small class="ims-form-hint">{{ 'expiration_date_hint' | translate }}</small>
 										<small class="p-error" *ngIf="submitted && isPharmacyExpirationInvalid()">
 											{{ 'profile_mode_pharmacy_expiration_future' | translate }}
 										</small>
@@ -532,6 +518,7 @@
 								<div class="field col-12">
 									<label for="costingMethod" class="ims-form-label">
 										{{ 'product_costing_method' | translate }}
+										<app-field-help [text]="'costing_method_inheritance_help' | translate"></app-field-help>
 									</label>
 									<p-dropdown appendTo="body" inputId="costingMethod" [(ngModel)]="localProduct.costingMethod"
 										[ngModelOptions]="{standalone: true}" name="costingMethod" [options]="costingMethods"
@@ -540,10 +527,9 @@
 										[disabled]="!isAdmin && localProduct?.productId"
 										(onChange)="updateEffectiveCostingMethodLabel()">
 									</p-dropdown>
-									<small class="ims-form-hint">{{ 'costing_method_inheritance_help' | translate }}</small>
 								</div>
 								<div class="field col-12">
-									<label class="ims-form-label">{{ 'effective_costing_method' | translate }}</label>
+									<label class="ims-form-label">{{ 'effective_costing_method' | translate }}<app-field-help [text]="'effective_costing_method_explanation' | translate"></app-field-help></label>
 									<div class="product-costing-effective"
 										[ngClass]="'product-costing-effective--' + effectiveCostingSource">
 										<div class="product-costing-effective__top">
@@ -558,7 +544,6 @@
 										</div>
 										<span class="product-costing-effective__value">{{ effectiveCostingMethodLabel }}</span>
 									</div>
-									<small class="ims-form-hint">{{ 'effective_costing_method_explanation' | translate }}</small>
 								</div>
 								<div class="field col-12" *ngIf="isStandardCostRequired()">
 									<label for="standardCost" class="ims-form-label">
@@ -595,7 +580,10 @@
 						<div class="field col-12">
 							<label for="productType" class="ims-form-label">
 								{{'product_type' | translate}} <span class="required-asterisk">*</span>
-							</label>
+								<app-field-help [text]="(isService() ? 'product_type_service_help' : 'product_type_product_help') | translate"></app-field-help>
+								<app-field-help *ngIf="activityProfileService.isPharmacyProfile" icon="lock" tone="warn"
+									[text]="'profile_mode_pharmacy_product_only' | translate"></app-field-help>
+								</label>
 							<p-dropdown appendTo="body" [(ngModel)]="localProduct.productType"
 								[ngModelOptions]="{standalone: true}" name="productType" [options]="profileAwareProductTypeOptions"
 								optionDisabled="disabled"
@@ -618,16 +606,6 @@
 									</span>
 								</ng-template>
 							</p-dropdown>
-							<small class="ims-form-hint">
-								<span *ngIf="localProduct.productType === 'SERVICE'">{{'product_type_service_help' |
-									translate}}</span>
-								<span
-									*ngIf="!localProduct.productType || localProduct.productType === 'PRODUCT'">{{'product_type_product_help'
-									| translate}}</span>
-							</small>
-							<small class="ims-form-hint ims-form-hint--warn" *ngIf="activityProfileService.isPharmacyProfile">
-								<i class="pi pi-lock mr-1"></i>{{ 'profile_mode_pharmacy_product_only' | translate }}
-							</small>
 							<small class="p-error" *ngIf="submitted && !localProduct.productType">
 								{{'product_type' | translate}} {{'is_required_label' | translate}}
 							</small>
@@ -652,8 +630,8 @@
 								<small class="p-error" *ngIf="submitted && !localProduct.name">
 									{{'product_name' | translate}} {{'is_required_label' | translate}}
 								</small>
-								<small *ngIf="localProduct.name" class="ims-form-hint">
-									{{ 40 - localProduct.name.length }} {{'characters_remaining_lbl' | translate}}
+								<small *ngIf="localProduct.name?.length >= 40" class="ims-form-hint ml-auto">
+									{{ localProduct.name.length }} / 50
 								</small>
 							</div>
 						</div>
@@ -686,12 +664,9 @@
 								[ngModelOptions]="{standalone: true}" rows="3" [autoResize]="true"
 								[maxlength]="productDescriptionMaxLength"
 								placeholder="{{'enter_product_description' | translate}}"></textarea>
-							<div class="flex justify-content-between mt-1">
+							<div class="flex justify-content-end mt-1" *ngIf="localProduct.description?.length">
 								<small class="ims-form-hint">
-									{{ (localProduct.description?.length || 0) }} / {{ productDescriptionMaxLength }}
-								</small>
-								<small class="ims-form-hint">
-									{{ (productDescriptionMaxLength - (localProduct.description?.length || 0)) }} {{ 'characters_remaining_lbl' | translate }}
+									{{ localProduct.description.length }} / {{ productDescriptionMaxLength }}
 								</small>
 							</div>
 							<small class="p-error block" *ngIf="(localProduct.description?.length || 0) > productDescriptionMaxLength">
@@ -729,6 +704,7 @@
 						<div class="field col-12 md:col-4" *ngIf="isProduct()">
 							<label for="stockTrackingMode" class="ims-form-label">
 								{{ 'stock_tracking_mode' | translate }}
+								<app-field-help [text]="'stock_tracking_mode_help' | translate"></app-field-help>
 							</label>
 							<p-dropdown appendTo="body" [(ngModel)]="localProduct.stockTrackingMode"
 								[ngModelOptions]="{standalone: true}" name="stockTrackingMode"
@@ -736,13 +712,15 @@
 								(onChange)="onStockTrackingModeChange()"
 								[disabled]="!!localProduct?.productId">
 							</p-dropdown>
-							<small class="ims-form-hint">{{ 'stock_tracking_mode_help' | translate }}</small>
 						</div>
 
 						<!-- Quantity Available — discrete (Products only) -->
 						<div class="field col-12 md:col-4" *ngIf="isProduct() && !isFractionalStock()">
 							<label for="quantityAvailable" class="ims-form-label">
 								{{'product_quantity' | translate}}
+								<app-field-help *ngIf="!localProduct?.productId" [text]="'product_quantity_help' | translate"></app-field-help>
+								<app-field-help *ngIf="localProduct?.productId" icon="lock" tone="warn"
+									[text]="'quantity_adjustment_help' | translate"></app-field-help>
 							</label>
 							<p-inputNumber name="quantityAvailable" [(ngModel)]="localProduct.quantityAvailable"
 								[ngModelOptions]="{standalone: true}" mode="decimal" [showButtons]="true" [min]="0"
@@ -753,13 +731,6 @@
 									<i class="pi pi-box"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="ims-form-hint" *ngIf="!localProduct?.productId">
-								{{'product_quantity_help' | translate}}
-							</small>
-							<small class="ims-form-hint ims-form-hint--warn" *ngIf="localProduct?.productId">
-								<i class="pi pi-info-circle mr-1"></i>
-								{{'quantity_adjustment_help' | translate}}
-							</small>
 						</div>
 
 						<!-- Prepaid pool setup hint -->
@@ -781,9 +752,13 @@
 								</ng-container>
 								<ng-template #defaultQtyLabel>
 									{{ 'product_quantity' | translate }}
-									<span class="ims-form-hint ims-form-hint--inline" *ngIf="localProduct.measureUnit">({{ localProduct.measureUnit | translate }})</span>
-								</ng-template>
-							</label>
+										<span class="ims-form-hint ims-form-hint--inline" *ngIf="localProduct.measureUnit">({{ localProduct.measureUnit | translate }})</span>
+									</ng-template>
+									<app-field-help *ngIf="!localProduct?.productId"
+										[text]="isPrepaidPool() ? ('product_prepaid_quantity_help' | translate:prepaidCurrencyParams) : ('product_fractional_quantity_help' | translate)"></app-field-help>
+									<app-field-help *ngIf="localProduct?.productId" icon="lock" tone="warn"
+										[text]="'quantity_adjustment_help' | translate"></app-field-help>
+									</label>
 							<p-inputNumber name="displayQuantityAvailable" [(ngModel)]="displayQuantityAvailableUi"
 								[ngModelOptions]="{standalone: true}" mode="decimal" [showButtons]="true" [min]="0"
 								[minFractionDigits]="0" [maxFractionDigits]="quantityInputDecimals()"
@@ -794,16 +769,6 @@
 									<i class="pi pi-box"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="ims-form-hint" *ngIf="!localProduct?.productId && !isPrepaidPool()">
-								{{ 'product_fractional_quantity_help' | translate }}
-							</small>
-							<small class="ims-form-hint" *ngIf="!localProduct?.productId && isPrepaidPool()">
-								{{ 'product_prepaid_quantity_help' | translate:prepaidCurrencyParams }}
-							</small>
-							<small class="ims-form-hint ims-form-hint--warn" *ngIf="localProduct?.productId">
-								<i class="pi pi-info-circle mr-1"></i>
-								{{ 'quantity_adjustment_help' | translate }}
-							</small>
 						</div>
 
 						<div class="field col-12 md:col-4">
@@ -839,10 +804,12 @@
 									{{ 'product_prepaid_buying_price_label' | translate:prepaidCurrencyParams }}
 								</ng-container>
 								<ng-template #defaultBuyingLabel>
-									{{ 'product_buying_price' | translate }}
-								</ng-template>
-								<span class="required-asterisk" *ngIf="isProduct()">*</span>
-							</label>
+										{{ 'product_buying_price' | translate }}
+									</ng-template>
+									<span class="required-asterisk" *ngIf="isProduct()">*</span>
+									<app-field-help *ngIf="isPrepaidPool()" [text]="'product_prepaid_buying_price_help' | translate:prepaidCurrencyParams"></app-field-help>
+									<app-field-help *ngIf="isService()" [text]="'product_buying_price_optional_services' | translate"></app-field-help>
+									</label>
 							<p-inputNumber [(ngModel)]="localProduct.buyingPrice" [ngModelOptions]="{standalone: true}"
 								mode="currency" [currency]="currency" [showButtons]="true" [min]="0" [max]="9999999999"
 								[readonly]="!isAdmin && localProduct?.productId">
@@ -850,15 +817,9 @@
 									<i class="pi pi-money-bill"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="ims-form-hint" *ngIf="isPrepaidPool()">
-								{{ 'product_prepaid_buying_price_help' | translate:prepaidCurrencyParams }}
-							</small>
 							<small class="ims-form-hint ims-form-hint--accent" *ngIf="isPrepaidPool() && suggestedPrepaidCostPerUnit() as suggested">
 								<i class="pi pi-info-circle mr-1"></i>
 								{{ 'product_prepaid_buying_price_hint' | translate:prepaidCurrencyParamsWith({ amount: (suggested | currency:currency:'symbol':'1.2-2') }) }}
-							</small>
-							<small class="ims-form-hint" *ngIf="isService()">
-								{{'product_buying_price_optional_services' | translate}}
 							</small>
 						</div>
 
@@ -868,10 +829,11 @@
 									{{ 'product_prepaid_selling_price_label' | translate:prepaidCurrencyParams }}
 								</ng-container>
 								<ng-template #defaultSellingLabel>
-									{{ 'product_selling_price' | translate }}
-								</ng-template>
-								<span class="required-asterisk">*</span>
-							</label>
+										{{ 'product_selling_price' | translate }}
+									</ng-template>
+									<span class="required-asterisk">*</span>
+									<app-field-help *ngIf="isPrepaidPool()" [text]="'product_prepaid_selling_price_help' | translate:prepaidCurrencyParams"></app-field-help>
+									</label>
 							<p-inputNumber [(ngModel)]="localProduct.sellingPrice" [ngModelOptions]="{standalone: true}"
 								mode="currency" [currency]="currency" [showButtons]="true" [min]="0"
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.sellingPrice}"
@@ -880,9 +842,6 @@
 									<i class="pi pi-tag"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="ims-form-hint" *ngIf="isPrepaidPool()">
-								{{ 'product_prepaid_selling_price_help' | translate:prepaidCurrencyParams }}
-							</small>
 							<small class="p-error" *ngIf="submitted && !localProduct.sellingPrice">
 								{{'product_selling_price' | translate}} {{'is_required_label' | translate}}
 							</small>
@@ -890,14 +849,13 @@
 
 						<!-- Enterprise VAT assignment (rules mode + license + admin only) -->
 						<div class="field col-12 md:col-6" *ngIf="vatFeatureReady && isAdmin">
-							<label for="productVat" class="ims-form-label">{{ 'product_vat_label' | translate }}</label>
+							<label for="productVat" class="ims-form-label">{{ 'product_vat_label' | translate }}<app-field-help [text]="'product_vat_hint' | translate"></app-field-help></label>
 							<p-dropdown inputId="productVat" [options]="vatOptions" [(ngModel)]="selectedVatRate"
 								[ngModelOptions]="{standalone: true}" optionLabel="label" optionValue="value"
 								appendTo="body" styleClass="w-full"></p-dropdown>
 							<small class="ims-form-hint" *ngIf="appliedVatLabel">
 								<i class="pi pi-percentage mr-1"></i>{{ 'product_vat_applied' | translate }}: {{ appliedVatLabel }}
 							</small>
-							<small class="ims-form-hint">{{ 'product_vat_hint' | translate }}</small>
 						</div>
 							</div>
 						</section>
@@ -914,6 +872,7 @@
 						<div class="field col-12 md:col-6">
 							<label for="estimatedDurationMinutes" class="ims-form-label">
 								{{'estimated_duration_minutes' | translate}}
+								<app-field-help [text]="'estimated_duration_help' | translate"></app-field-help>
 							</label>
 							<p-inputNumber inputId="estimatedDurationMinutes" name="estimatedDurationMinutes"
 								[(ngModel)]="localProduct.estimatedDurationMinutes"
@@ -924,9 +883,6 @@
 									<i class="pi pi-clock"></i>
 								</ng-template>
 							</p-inputNumber>
-							<small class="ims-form-hint">
-								{{'estimated_duration_help' | translate}}
-							</small>
 						</div>
 							</div>
 						</section>

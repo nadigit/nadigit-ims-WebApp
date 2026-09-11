@@ -12,10 +12,9 @@
     <!-- Main Content -->
     <div class="product-content" *ngIf="!isLoading && product">
 
-        <div *ngIf="isProduct(product) && !salesStockIncludesApprovedWriteoffQty" class="mb-3 p-3 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
-            <i class="pi pi-info-circle mt-1 flex-shrink-0"></i>
-            <span>{{ 'products_inventory_writeoff_stock_hint' | translate }}</span>
-        </div>
+        <app-page-note *ngIf="isProduct(product) && !salesStockIncludesApprovedWriteoffQty" class="mt-3">
+            {{ 'products_inventory_writeoff_stock_hint' | translate }}
+        </app-page-note>
         
         <!-- Hero Header Section -->
         <div class="product-hero">
@@ -119,7 +118,7 @@
                     </div>
                     <div class="mt-2" *ngIf="(canEdit || isAdmin) && !isAggregatedView">
                         <button pButton pRipple 
-                            icon="pi pi-plus-minus" 
+                            icon="pi pi-sort-alt" 
                             [label]="'adjust_stock' | translate"
                             class="p-button-sm p-button-outlined"
                             (click)="openStockAdjustmentDialog()">
@@ -256,7 +255,7 @@
                                         </button>
                                         <button pButton pRipple type="button"
                                             *ngIf="canEdit || isAdmin"
-                                            icon="pi pi-plus-minus"
+                                            icon="pi pi-sort-alt"
                                             [label]="'adjust_stock' | translate"
                                             class="p-button-sm p-button-outlined p-button-secondary white-space-nowrap"
                                             [pTooltip]="'adjust_stock_for_warehouse' | translate"

@@ -1,9 +1,6 @@
 ﻿<div class="write-off-details-container">
     <p-toast></p-toast>
 
-    <p-message *ngIf="writeOffApprovalConfigLoaded && requireManualWriteOffApproval" severity="info"
-        styleClass="mb-3 w-full" [closable]="false"
-        [text]="'writeoff_approval_workflow_hint' | translate"></p-message>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
@@ -14,6 +11,9 @@
 
     <!-- Main Content -->
     <div class="write-off-content" *ngIf="!isLoading && writeOff">
+        <app-page-note *ngIf="writeOffApprovalConfigLoaded && requireManualWriteOffApproval" class="mt-3">
+            {{ 'writeoff_approval_workflow_hint' | translate }}
+        </app-page-note>
         
         <!-- Hero Header Section -->
         <div class="write-off-hero">

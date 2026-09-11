@@ -11,6 +11,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { Purchase } from 'src/app/models/purchase';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -60,6 +61,9 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
 
   paymentTimelineEvents: PaymentTimelineEvent[] = [];
 
+  /** Vouchers are financial documents (PRO+). Starts false so STARTER never sees the button flash. */
+  financialDocumentsLicensed = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -74,15 +78,17 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
     private translateService: TranslationService,
     public financialDocService: FinancialDocumentsService,
     private reconciliationValidationService: ReconciliationValidationService,
-    public pageSizeService: TablePageSizeService
+    public pageSizeService: TablePageSizeService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) {}
 
   async ngOnInit() {
     this.isLoading = true;
-    
+
     // Load token first
     this.paymentService.loadToken();
-    
+    void this.loadLicenseCapabilities();
+
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -427,29 +433,43 @@ export class PurchasePaymentDetailsPageComponent implements OnInit {
     this.financialDocService.printFinancialDoc(receiptNumber);
   }
 
-  generateReceipt(paymentId: number): void {
-    if (!paymentId) return;
-    
-    this.financialDocService.generateReceiptFromPOS(paymentId).subscribe({
+  /**
+   * An outgoing payment gets a payment voucher, not a receipt: a receipt is issued by whoever is
+   * paid, and the receipt path requires an order, so it could only ever fail here.
+   */
+  generateVoucher(paymentId: number): void {
+    if (!paymentId || !this.financialDocumentsLicensed) return;
+
+    this.financialDocService.generatePaymentVoucher(paymentId).subscribe({
       next: (res: any) => {
         this.financialDocService.printFinancialDoc(res.number);
         this.messageService.add({
           severity: 'success',
-          summary: this.translate.instant('receipt_generated'),
+          summary: this.translate.instant('payment_voucher_generated'),
           detail: res.number,
+          life: 4000
         });
-        // Reload payment to get updated receipt info
-        this.loadPayment();
       },
-      error: () => {
+      error: (err: any) => {
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
-          detail: this.translate.instant('receipt_generation_failed'),
-          life: 3000
+          detail: err?.error?.message || this.translate.instant('payment_voucher_failed'),
+          life: 5000
         });
       }
     });
+  }
+
+  /** Financial documents are PRO+; on STARTER every call to them is refused with a 403. */
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.financialDocumentsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('FINANCIAL_DOCUMENTS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for financial documents.', error);
+      this.financialDocumentsLicensed = true;
+    }
   }
 
   deletePayment(): void {

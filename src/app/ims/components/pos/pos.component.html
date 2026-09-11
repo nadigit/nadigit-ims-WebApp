@@ -37,19 +37,15 @@
   </div> -->
   <!-- <div *ngIf="activeTab === 'sales' && activityProfileService.emphasizePosRetail"
        class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
-    <i class="pi pi-store mt-1 flex-shrink-0"></i>
+    <i class="pi pi-shopping-bag mt-1 flex-shrink-0"></i>
     <span>{{ 'activity_profile_hint_pos_retail' | translate }}</span>
   </div> -->
-  <div *ngIf="activityProfileService.isPharmacyProfile"
-       class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
-    <i class="pi pi-shield mt-1 flex-shrink-0"></i>
-    <span>{{ 'profile_mode_pharmacy_pos' | translate }}</span>
-  </div>
-  <div *ngIf="activityProfileService.isFashionProfile"
-       class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm flex align-items-start gap-2">
-    <i class="pi pi-palette mt-1 flex-shrink-0"></i>
-    <span>{{ 'profile_mode_fashion_pos' | translate }} {{ 'pos_fashion_scan_hint' | translate }}</span>
-  </div>
+  <app-page-note *ngIf="activityProfileService.isPharmacyProfile" icon="pi-shield" class="mx-2 mt-2 mb-0">
+      {{ 'profile_mode_pharmacy_pos' | translate }}
+  </app-page-note>
+  <app-page-note *ngIf="activityProfileService.isFashionProfile" icon="pi-palette" class="mx-2 mt-2 mb-0">
+      {{ 'profile_mode_fashion_pos' | translate }} {{ 'pos_fashion_scan_hint' | translate }}
+  </app-page-note>
   <div *ngIf="activityProfileService.isPharmacyProfile || activityProfileService.isFashionProfile"
        class="pos-stock-writeoff-hint px-3 py-2 mx-2 mt-2 border-round surface-ground text-600 text-sm">
     <div class="font-semibold text-900 mb-2">{{ 'profile_quick_actions' | translate }}</div>
@@ -168,13 +164,13 @@
           appendTo="body">
           <ng-template pTemplate="selectedItem">
             <div class="flex align-items-center gap-2">
-              <i class="pi pi-store"></i>
+              <i class="pi pi-shopping-bag"></i>
               <span>{{ getSelectedShopName() }}</span>
             </div>
           </ng-template>
           <ng-template let-shop pTemplate="item">
             <div class="flex align-items-center gap-2">
-              <i class="pi pi-store"></i>
+              <i class="pi pi-shopping-bag"></i>
               <span>{{ shop.shopName }}</span>
             </div>
           </ng-template>
@@ -381,7 +377,7 @@
       <div class="card mb-4 border-round-lg shadow-sm">
         <div class="flex align-items-center justify-content-between mb-3">
           <h3 class="m-0 flex align-items-center gap-2">
-            <i class="pi pi-barcode text-primary"></i>
+            <i class="pi pi-qrcode text-primary"></i>
             {{ 'barcode_scan' | translate }}
           </h3>
           <button
@@ -467,8 +463,9 @@
             <p-selectButton [(ngModel)]="posSellMode" [options]="posSellModeOptions" optionLabel="label"
               optionValue="value" styleClass="pos-sell-mode-toggle mb-3"></p-selectButton>
 
-            <p-message *ngIf="isAdmin && !selectedWarehouseId" severity="warn" styleClass="w-full mb-3"
-              [text]="'variant_picker_warehouse_required' | translate"></p-message>
+            <app-page-note *ngIf="isAdmin && !selectedWarehouseId" tone="warning">
+                {{ 'variant_picker_warehouse_required' | translate }}
+            </app-page-note>
 
             <ng-container *ngIf="posSellMode === 'styles' && (!isAdmin || selectedWarehouseId)">
               <div *ngIf="selectedPosFamily" class="mb-3">
@@ -959,7 +956,7 @@
           <div class="col-12 lg:col-7">
             <div class="pos-order-summary-header">
               <div class="flex align-items-center gap-2 mb-3">
-                <i class="pi pi-receipt text-primary text-2xl"></i>
+                <i class="pi pi-ticket text-primary text-2xl"></i>
                 <h4 class="mt-0 mb-0">{{ 'order_summary' | translate }}</h4>
               </div>
             </div>
@@ -1876,7 +1873,7 @@
     styleClass="pos-dialog">
     <div class="flex flex-column gap-4">
       <div class="text-center">
-        <i class="pi pi-play-circle text-primary text-5xl mb-3"></i>
+        <i class="pi pi-play text-primary text-5xl mb-3"></i>
         <p class="text-600 mb-4">{{ 'open_new_pos_session' | translate }}</p>
       </div>
       

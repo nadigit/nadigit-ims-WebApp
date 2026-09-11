@@ -24,6 +24,7 @@ import { ChipModule } from 'primeng/chip';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MultiSelectModule } from 'primeng/multiselect';
 import { TooltipModule } from 'primeng/tooltip';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 import { TabViewModule } from 'primeng/tabview';
 import { BadgeModule } from 'primeng/badge';
 import { TagModule } from 'primeng/tag';
@@ -62,6 +63,7 @@ import { CalendarModule } from 'primeng/calendar';
         ProgressSpinnerModule,
         MultiSelectModule,
         TooltipModule,
+        PageNoteComponent,
         TabViewModule,
         BadgeModule,
         TagModule,

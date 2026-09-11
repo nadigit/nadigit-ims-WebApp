@@ -63,16 +63,17 @@
                             [disabled]="!canConfirmPaymentBasedOnReconciliation()"
                             [pTooltip]="(requiresReconciliation(payment?.paymentMethod) && !canConfirmPaymentBasedOnReconciliation()) ? ('reconciliation_required_tooltip' | translate) : ''"
                             (click)="openConfirmPayment()"></button>
-                        <button pButton pRipple icon="pi pi-print" 
+                        <button pButton pRipple icon="pi pi-print"
                             [label]="'print_receipt' | translate"
-                            *ngIf="payment?.receiptNumber"
+                            *ngIf="financialDocumentsLicensed && payment?.receiptNumber"
                             class="p-button-help"
                             (click)="printReceipt(payment.receiptNumber)"></button>
-                        <button pButton pRipple icon="pi pi-file-pdf" 
-                            [label]="'generate_receipt' | translate"
-                            *ngIf="!payment?.receiptNumber"
+                        <!-- We are the payer: we issue a voucher, never a receipt. Financial documents are PRO+. -->
+                        <button pButton pRipple icon="pi pi-file-export"
+                            [label]="'generate_payment_voucher' | translate"
+                            *ngIf="financialDocumentsLicensed"
                             class="p-button-primary"
-                            (click)="generateReceipt(payment.paymentId)"></button>
+                            (click)="generateVoucher(payment.paymentId)"></button>
                     </div>
                 </div>
             </div>
@@ -96,7 +97,7 @@
             
             <div class="stat-card-modern" *ngIf="hasMultiplePurchases() || payment.purchase">
                 <div class="ims-icon-tile ims-icon-tile--md ims-icon-tile--orange">
-                    <i class="pi pi-receipt"></i>
+                    <i class="pi pi-ticket"></i>
                 </div>
                 <div class="stat-content">
                     <span class="stat-label">{{ 'purchase_total' | translate }}</span>
@@ -233,7 +234,7 @@
                         <!-- Bank Reconciliation Status Card -->
                         <div class="detail-card mb-4" *ngIf="requiresReconciliation(payment?.paymentMethod)">
                             <div class="card-header">
-                                <i class="pi pi-bank"></i>
+                                <i class="pi pi-building"></i>
                                 <span>{{ 'bank_reconciliation_status' | translate }}</span>
                             </div>
                             <div class="card-body">
@@ -372,7 +373,7 @@
                         <!-- Multiple Purchases Card -->
                         <div class="detail-card mb-4" *ngIf="hasMultiplePurchases()">
                             <div class="card-header">
-                                <i class="pi pi-receipt"></i>
+                                <i class="pi pi-ticket"></i>
                                 <span>{{ 'multiple_purchases' | translate }}</span>
                                 <p-badge [value]="getPurchasesInTransaction().length.toString()" 
                                     severity="info" class="ml-2"></p-badge>
@@ -410,7 +411,7 @@
                                         <tr>
                                             <td>
                                                 <div class="flex align-items-center gap-2">
-                                                    <i class="pi pi-receipt text-primary"></i>
+                                                    <i class="pi pi-ticket text-primary"></i>
                                                     <span class="font-semibold">
                                                         #{{ paymentItem.purchaseReference || paymentItem.purchase?.reference || paymentItem.purchaseId }}
                                                     </span>
@@ -446,7 +447,7 @@
                         <!-- Single Purchase Card -->
                         <div class="detail-card mb-4" *ngIf="payment?.purchaseId && !hasMultiplePurchases()">
                             <div class="card-header">
-                                <i class="pi pi-receipt"></i>
+                                <i class="pi pi-ticket"></i>
                                 <span>{{ 'purchase_information' | translate }}</span>
                             </div>
                             <div class="card-body">
@@ -526,17 +527,17 @@
                                         [pTooltip]="(requiresReconciliation(payment?.paymentMethod) && !canConfirmPaymentBasedOnReconciliation()) ? ('reconciliation_required_tooltip' | translate) : ''"
                                         (click)="openConfirmPayment()"></button>
                                     
-                                    <button pButton pRipple icon="pi pi-print" 
+                                    <button pButton pRipple icon="pi pi-print"
                                         [label]="'print_receipt' | translate"
-                                        *ngIf="payment?.receiptNumber"
+                                        *ngIf="financialDocumentsLicensed && payment?.receiptNumber"
                                         class="p-button-outlined p-button-help"
                                         (click)="printReceipt(payment.receiptNumber)"></button>
-                                    
-                                    <button pButton pRipple icon="pi pi-file-pdf" 
-                                        [label]="'generate_receipt' | translate"
-                                        *ngIf="!payment?.receiptNumber"
+
+                                    <button pButton pRipple icon="pi pi-file-export"
+                                        [label]="'generate_payment_voucher' | translate"
+                                        *ngIf="financialDocumentsLicensed"
                                         class="p-button-primary"
-                                        (click)="generateReceipt(payment.paymentId)"></button>
+                                        (click)="generateVoucher(payment.paymentId)"></button>
                                     
                                     <button pButton pRipple icon="pi pi-external-link" 
                                         [label]="'view_purchase' | translate"

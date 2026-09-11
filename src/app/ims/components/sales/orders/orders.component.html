@@ -22,24 +22,15 @@
 				</div>
 				<p class="text-600 text-sm mt-2 mb-0">{{ 'sales_document_chain_workflow_hint' | translate }}</p>
 			</div>
-			<div *ngIf="activityProfileService.emphasizeB2bWorkflow" class="mt-3 p-3 border-round surface-ground border-1 surface-border">
-				<div class="flex align-items-start gap-2 text-sm text-700">
-					<i class="pi pi-briefcase mt-1 text-primary"></i>
-					<span>{{ 'activity_profile_hint_b2b_sales' | translate }}</span>
-				</div>
-			</div>
-			<div *ngIf="activityProfileService.isPharmacyProfile" class="mt-3 p-3 border-round surface-ground border-1 surface-border">
-				<div class="flex align-items-start gap-2 text-sm text-700">
-					<i class="pi pi-shield mt-1 text-primary"></i>
-					<span>{{ 'profile_mode_pharmacy_orders' | translate }}</span>
-				</div>
-			</div>
-			<div *ngIf="activityProfileService.isFashionProfile" class="mt-3 p-3 border-round surface-ground border-1 surface-border">
-				<div class="flex align-items-start gap-2 text-sm text-700">
-					<i class="pi pi-palette mt-1 text-primary"></i>
-					<span>{{ 'profile_mode_fashion_orders' | translate }}</span>
-				</div>
-			</div>
+			<app-page-note *ngIf="activityProfileService.emphasizeB2bWorkflow" icon="pi-briefcase" class="mt-3 mb-0">
+				{{ 'activity_profile_hint_b2b_sales' | translate }}
+			</app-page-note>
+			<app-page-note *ngIf="activityProfileService.isPharmacyProfile" icon="pi-shield" class="mt-3 mb-0">
+				{{ 'profile_mode_pharmacy_orders' | translate }}
+			</app-page-note>
+			<app-page-note *ngIf="activityProfileService.isFashionProfile" icon="pi-palette" class="mt-3 mb-0">
+				{{ 'profile_mode_fashion_orders' | translate }}
+			</app-page-note>
 			<div *ngIf="activityProfileService.isPharmacyProfile || activityProfileService.isFashionProfile"
 				class="mt-3 p-3 border-round surface-ground border-1 surface-border">
 				<div class="font-semibold text-900 mb-2">{{ 'profile_quick_actions' | translate }}</div>
@@ -113,8 +104,7 @@
 												<label for="customer" class="ims-form-label ims-form-label--inline m-0">
 													{{ 'order_customer' | translate }} <span class="required-asterisk">*</span>
 												</label>
-												<a *ngIf="canAddCustomer && !order.orderId" class="field-shortcut-link"
-													(click)="openCustomerDialog()">{{ 'add_new_customer' | translate }}</a>
+												<app-form-add-button *ngIf="canAddCustomer && !order.orderId" [label]="'add_new_customer' | translate" (add)="openCustomerDialog()"></app-form-add-button>
 											</div>
 											<p-dropdown [(ngModel)]="order.customer" name="customer" inputId="customer"
 												id="customer" ngDefaultControl [optionLabel]="getCustomerDisplayName"
@@ -151,8 +141,7 @@
 												<label for="shop" class="ims-form-label ims-form-label--inline m-0">
 													{{ 'order_shop' | translate }} <span class="required-asterisk">*</span>
 												</label>
-												<a *ngIf="canAddShop && !order.orderId" class="field-shortcut-link"
-													(click)="openShopDialog()">{{ 'add_new_shop' | translate }}</a>
+												<app-form-add-button *ngIf="canAddShop && !order.orderId" [label]="'add_new_shop' | translate" (add)="openShopDialog()"></app-form-add-button>
 											</div>
 											<p-dropdown [(ngModel)]="order.shop" name="shop" inputId="shop" id="shop"
 												ngDefaultControl optionLabel="shopName" [options]="shops" required
@@ -181,8 +170,7 @@
 												<label for="warehouse" class="ims-form-label ims-form-label--inline m-0">
 													{{ 'warehouse' | translate }} <span class="required-asterisk">*</span>
 												</label>
-												<a *ngIf="canAddWarehouse && !order.orderId" class="field-shortcut-link"
-													(click)="openWarehouseDialog()">{{ 'add_new_warehouse' | translate }}</a>
+												<app-form-add-button *ngIf="canAddWarehouse && !order.orderId" [label]="'add_new_warehouse' | translate" (add)="openWarehouseDialog()"></app-form-add-button>
 											</div>
 											<p-dropdown [(ngModel)]="selectedOrderWarehouse" name="warehouse" inputId="warehouse"
 												ngDefaultControl optionLabel="name" [options]="warehouses" [filter]="true"
@@ -195,11 +183,11 @@
 											<small class="p-error" *ngIf="submitted && !selectedOrderWarehouse">
 												{{ 'warehouse' | translate }} {{ 'is_required_label' | translate }}
 											</small>
-											<div class="ims-form-callout order-warehouse-callout mt-2"
+											<!-- <div class="ims-form-callout order-warehouse-callout mt-2"
 												*ngIf="isAdmin && !selectedOrderWarehouse">
 												<i class="pi pi-info-circle"></i>
 												<span>{{ 'select_warehouse_first' | translate }}</span>
-											</div>
+											</div> -->
 										</div>
 									</div>
 								</section>
@@ -232,9 +220,7 @@
 												<label for="productSearch" class="ims-form-label ims-form-label--inline m-0">
 													<i class="pi pi-search mr-1"></i>{{ 'search_products' | translate }}
 												</label>
-												<a *ngIf="canAddProduct" class="field-shortcut-link" (click)="openNewProduct()">
-													{{ 'add_new_product' | translate }}
-												</a>
+												<app-form-add-button *ngIf="canAddProduct" [label]="'add_new_product' | translate" (add)="openNewProduct()"></app-form-add-button>
 											</div>
 											<p-autoComplete inputId="productSearch" class="w-full" styleClass="w-full"
 												[(ngModel)]="selectedProduct" [suggestions]="productSuggestions"
@@ -331,7 +317,7 @@
 										</div>
 
 										<div class="field mb-0" *ngIf="selectedCategory && filteredProducts.length > 0 && getSelectableCategoryProductsCount() === 0">
-											<p-message severity="warn" [text]="'category_products_all_unavailable' | translate"></p-message>
+											<app-page-note tone="warning">{{ 'category_products_all_unavailable' | translate }}</app-page-note>
 										</div>
 
 										<div class="field mb-0" *ngIf="selectedCategory && filteredProducts.length > 0">
@@ -566,7 +552,7 @@
 							<section class="ims-form-section ims-form-section--accent order-summary-section">
 								<header class="ims-form-section__header">
 									<div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--orange">
-										<i class="pi pi-receipt"></i>
+										<i class="pi pi-ticket"></i>
 									</div>
 									<h3 class="ims-form-section__title">{{ 'order_summary' | translate }}</h3>
 								</header>

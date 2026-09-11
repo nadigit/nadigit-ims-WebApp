@@ -1220,7 +1220,7 @@ export class AppTopBarComponent implements OnInit, OnDestroy {
     this.confirmationService.confirm({
       message: this.translate.instant('confirm_mute_notification_type', { type: notificationType }),
       header: this.translate.instant('mute_notifications'),
-      icon: 'pi pi-bell-slash',
+      icon: 'pi pi-volume-off',
       accept: () => {
         this.notificationService.muteNotificationType(notificationType).subscribe(
           () => {

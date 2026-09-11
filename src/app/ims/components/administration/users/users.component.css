@@ -127,16 +127,8 @@
 /* Stated once, quietly. The friction that matters is at the New-user button, which is disabled
    with an explanatory tooltip at capacity — a permanent warning banner on a page an administrator
    uses routinely is a nag, not information. */
-.users-plan-hint {
-    padding: .55rem .85rem;
-    border-radius: 8px;
-    background: var(--surface-100, #f4f7fb);
-    color: var(--text-color-secondary, #64748b);
-    font-size: .85rem;
-}
-
 .users-plan-hint__link {
-    margin-inline-start: auto;
+    margin-inline-start: .35rem;
     color: var(--primary-color, #4f46e5);
     font-weight: 500;
     cursor: pointer;

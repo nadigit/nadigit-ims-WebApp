@@ -259,6 +259,7 @@ export class ProductFormComponent implements OnInit, OnChanges {
         this.applyProfileProductTypePolicy();
         this.applyProfileDrivenDefaultsForNewProduct();
         this.applyDefaultWarehouseIfSingle();
+        this.applyDefaultCategoryAndSupplierIfSingle();
         void this.loadOrganizationCostingMethod();
         void this.loadVatStateForProduct();
       } else {
@@ -267,13 +268,46 @@ export class ProductFormComponent implements OnInit, OnChanges {
       }
     }
     // When warehouses/categories input changes, re-resolve inheritance from full list objects
-    if ((changes['warehouses'] || changes['categories']) && this.visible) {
+    if ((changes['warehouses'] || changes['categories'] || changes['suppliers']) && this.visible) {
       if (changes['warehouses']) {
         this.applyDefaultWarehouseIfSingle();
+      }
+      if (changes['categories'] || changes['suppliers']) {
+        // Lists often arrive after the dialog opens, or grow from zero to one through a quick-add.
+        this.applyDefaultCategoryAndSupplierIfSingle();
       }
       this.enrichEssentialsReferences();
       this.updateEffectiveCostingMethodLabel();
     }
+  }
+
+  /**
+   * Same courtesy as the warehouse: an organization with exactly one category, or exactly one
+   * supplier, has nothing to choose, so a new product starts with it selected.
+   *
+   * Never overrides a selection, and only applies to new products — filling a blank supplier on an
+   * existing product would silently change a record the user merely opened. The supplier follows
+   * the warehouse rule and is products-only, since it is optional for services; the category is
+   * required for both, so both get it.
+   */
+  private applyDefaultCategoryAndSupplierIfSingle(): void {
+    if (!this.localProduct || this.localProduct.productId) return;
+    if (this.isAggregatedEditMode()) return;
+
+    const next = { ...this.localProduct };
+    let changed = false;
+    if (!next.category && this.categories?.length === 1) {
+      next.category = this.categories[0];
+      changed = true;
+    }
+    if (this.isProduct() && !next.supplier && this.suppliers?.length === 1) {
+      next.supplier = this.suppliers[0];
+      changed = true;
+    }
+    if (!changed) return;
+
+    this.localProduct = next;
+    this.updateEffectiveCostingMethodLabel();
   }
 
   /**
@@ -851,6 +885,9 @@ export class ProductFormComponent implements OnInit, OnChanges {
       if (this.localProduct.quantityAvailable === null || this.localProduct.quantityAvailable === undefined) {
         this.localProduct.quantityAvailable = 0;
       }
+      // Switching to SERVICE cleared the warehouse; coming back should restore the obvious choices.
+      this.applyDefaultWarehouseIfSingle();
+      this.applyDefaultCategoryAndSupplierIfSingle();
     }
     
     // Update cached measure units for current type

@@ -11,6 +11,7 @@ import { KeycloakService } from 'keycloak-angular';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { TranslationService } from 'src/app/services/translation.service';
 import { FinancialDocumentsService } from 'src/app/services/financial-documents.service';
+import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { Product } from 'src/app/models/product';
 import { OrderReturn } from 'src/app/models/orderReturn';
 import { Payment } from 'src/app/models/payment';
@@ -59,6 +60,11 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
   canProcess: boolean = false;
   canCancel: boolean = false;
   isAdmin: boolean = false;
+  /**
+   * Quotes, proformas, purchase/delivery orders and invoices are PRO+. Receipts are not gated.
+   * Starts false so STARTER never sees the buttons flash before the capabilities arrive.
+   */
+  financialDocumentsLicensed = false;
   userRoles: any;
   Ressource: string = "ORDERS";
 
@@ -122,14 +128,27 @@ export class OrderDetailsPageComponent implements OnInit, OnDestroy {
     public financialDocService: FinancialDocumentsService,
     private processModeService: ProcessModeService,
     private cdr: ChangeDetectorRef,
-    public pageSizeService: TablePageSizeService
+    public pageSizeService: TablePageSizeService,
+    private licenseCapabilitiesService: LicenseCapabilitiesService
   ) {}
+
+  private async loadLicenseCapabilities(): Promise<void> {
+    try {
+      await this.licenseCapabilitiesService.ensureLoaded();
+      this.financialDocumentsLicensed = this.licenseCapabilitiesService.isFeatureEnabled('FINANCIAL_DOCUMENTS');
+    } catch (error) {
+      console.warn('Unable to resolve license capabilities for financial documents.', error);
+      this.financialDocumentsLicensed = true;
+    }
+    this.cdr.markForCheck();
+  }
 
   async ngOnInit() {
     this.isLoading = true;
     
     // Load token first
     this.orderService.loadToken();
+    void this.loadLicenseCapabilities();
 
     await this.processModeService.ensureLoaded();
     this.salesDocumentChainMode = this.processModeService.isSalesDocumentChain();

@@ -212,13 +212,6 @@
   width: 100%;
 }
 
-.maintenance-note {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--text-color-secondary);
-  font-size: 0.9rem;
-}
 
 .field-label {
   font-size: 0.875rem;

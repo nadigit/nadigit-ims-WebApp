@@ -313,10 +313,9 @@
                   placeholder="{{ 'line_rule_attribute_name_placeholder' | translate }}" />
               </div>
             </div>
-            <div class="line-rules-hint p-2 border-round flex align-items-start gap-2"
-              *ngIf="form.amountSource === 'CONSUMED_BATCH_VALUE'">
-              <i class="pi pi-info-circle mt-1"></i>
-              <span class="text-sm">{{ 'line_rule_source_batch_value_hint' | translate }}</span>
+            <div class="ims-form-callout" *ngIf="form.amountSource === 'CONSUMED_BATCH_VALUE'">
+                <i class="pi pi-info-circle"></i>
+                <span>{{ 'line_rule_source_batch_value_hint' | translate }}</span>
             </div>
           </div>
         </section>

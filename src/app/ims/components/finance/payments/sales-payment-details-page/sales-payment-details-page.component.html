@@ -56,12 +56,13 @@
                     </div>
                     
                     <div class="flex flex-wrap gap-2 action-buttons">
-                        <button pButton pRipple icon="pi pi-print" 
+                        <button pButton pRipple icon="pi pi-print"
                             [label]="'print_receipt' | translate"
                             *ngIf="payment?.receiptNumber"
                             class="p-button-help"
                             (click)="printReceipt(payment.receiptNumber)"></button>
-                        <button pButton pRipple icon="pi pi-file-pdf" 
+                        <!-- Receipts stay available on every plan, STARTER included (the rest of financial documents is PRO+). -->
+                        <button pButton pRipple icon="pi pi-file-pdf"
                             [label]="'generate_receipt' | translate"
                             *ngIf="!payment?.receiptNumber"
                             class="p-button-primary"
@@ -247,7 +248,7 @@
                         <!-- Bank Reconciliation Status Card -->
                         <div class="detail-card mb-4" *ngIf="requiresReconciliation(payment?.paymentMethod)">
                             <div class="card-header">
-                                <i class="pi pi-bank"></i>
+                                <i class="pi pi-building"></i>
                                 <span>{{ 'bank_reconciliation_status' | translate }}</span>
                             </div>
                             <div class="card-body">
@@ -542,13 +543,13 @@
                                         [pTooltip]="(requiresReconciliation(payment?.paymentMethod) && !canConfirmPaymentBasedOnReconciliation()) ? ('reconciliation_required_tooltip' | translate) : ''"
                                         (click)="openConfirmPayment()"></button>
                                     
-                                    <button pButton pRipple icon="pi pi-print" 
+                                    <button pButton pRipple icon="pi pi-print"
                                         [label]="'print_receipt' | translate"
                                         *ngIf="payment?.receiptNumber"
                                         class="p-button-outlined p-button-help"
                                         (click)="printReceipt(payment.receiptNumber)"></button>
-                                    
-                                    <button pButton pRipple icon="pi pi-file-pdf" 
+
+                                    <button pButton pRipple icon="pi pi-file-pdf"
                                         [label]="'generate_receipt' | translate"
                                         *ngIf="!payment?.receiptNumber"
                                         class="p-button-primary"

@@ -3,9 +3,4 @@
 }
 
 /* Inline hint inside the dialog (CONSUMED_BATCH_VALUE explanation) */
-.line-rules-hint {
-  background: var(--surface-ground);
-  border: 1px solid var(--surface-border);
-  color: var(--text-color-secondary);
-}
 

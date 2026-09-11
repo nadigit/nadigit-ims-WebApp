@@ -34,7 +34,7 @@
                 <p class="text-color-secondary m-0">{{"no_active_cash_register_session" | translate }}</p>
               </div>
             </div>
-            <button pButton label="{{'open_session'| translate}}" icon="pi pi-cash" class="p-button-warning"
+            <button pButton label="{{'open_session'| translate}}" icon="pi pi-money-bill" class="p-button-warning"
               (click)="showCashRegisterDialog = true"></button>
           </div>
         </div>
@@ -1049,7 +1049,7 @@
         </a>
       </div>
       <p class="system-info-footer__legal m-0">
-        <i class="pi pi-copyright"></i>
+        <span aria-hidden="true">&copy;</span>
         {{ 'nadigit_rights_reserved' | translate:{ year: currentYear } }}
       </p>
     </div>

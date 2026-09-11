@@ -1,8 +1,6 @@
 ﻿<div class="expense-details-container">
     <p-toast></p-toast>
 
-    <p-message *ngIf="expenseConfigLoaded && requireApproval && expense" severity="info" styleClass="mb-3 w-full" [closable]="false"
-        [text]="'expense_approval_workflow_hint' | translate"></p-message>
 
     <!-- Loading State -->
     <div class="loading-wrapper" *ngIf="isLoading">
@@ -13,6 +11,9 @@
 
     <!-- Main Content -->
     <div class="expense-content" *ngIf="!isLoading && expense">
+        <app-page-note *ngIf="expenseConfigLoaded && requireApproval" class="mt-3">
+            {{ 'expense_approval_workflow_hint' | translate }}
+        </app-page-note>
         
         <!-- Hero Header Section -->
         <div class="expense-hero">

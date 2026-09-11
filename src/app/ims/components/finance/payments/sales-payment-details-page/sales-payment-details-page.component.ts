@@ -79,10 +79,10 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
 
   async ngOnInit() {
     this.isLoading = true;
-    
+
     // Load token first
     this.paymentService.loadToken();
-    
+
     this.configService.currency$.subscribe(currency => {
       if (currency) {
         this.currency = currency;
@@ -436,7 +436,7 @@ export class SalesPaymentDetailsPageComponent implements OnInit {
 
   generateReceipt(paymentId: number): void {
     if (!paymentId) return;
-    
+
     this.financialDocService.generateReceiptFromPOS(paymentId).subscribe({
       next: (res: any) => {
         this.financialDocService.printFinancialDoc(res.number);

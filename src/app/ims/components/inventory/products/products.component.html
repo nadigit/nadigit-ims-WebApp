@@ -13,7 +13,7 @@
 			<div class="flex align-items-center gap-2 p-3 surface-ground border-round">
 				<span class="text-600 font-medium">{{ 'view_mode' | translate }}:</span>
 				<button pButton pRipple 
-					[icon]="viewMode === 'standard' ? 'pi pi-list' : 'pi pi-layer-group'"
+					[icon]="viewMode === 'standard' ? 'pi pi-list' : 'pi pi-th-large'"
 					[label]="viewMode === 'standard' ? ('standard_view' | translate) : ('aggregated_view' | translate)"
 					[class]="viewMode === 'standard' ? 'p-button-outlined' : 'p-button-primary'"
 					(click)="toggleViewMode()"
