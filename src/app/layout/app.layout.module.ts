@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputTextareaModule } from 'primeng/inputtextarea';
@@ -38,8 +38,7 @@ import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { BrandLogoComponent } from '../shared/brand-logo';
 
 
-@NgModule({
-    declarations: [
+@NgModule({ declarations: [
         AppMenuitemComponent,
         AppTopBarComponent,
         AppFooterComponent,
@@ -47,10 +46,8 @@ import { BrandLogoComponent } from '../shared/brand-logo';
         AppSidebarComponent,
         AppLayoutComponent
     ],
-    imports: [
-        BrowserModule,
+    exports: [AppLayoutComponent], imports: [BrowserModule,
         FormsModule,
-        HttpClientModule,
         BrowserAnimationsModule,
         InputTextModule,
         InputTextareaModule,
@@ -78,8 +75,5 @@ import { BrandLogoComponent } from '../shared/brand-logo';
         ProgressSpinnerModule,
         ConfirmPopupModule,
         CashRegisterSessionModule,
-        BrandLogoComponent
-    ],
-    exports: [AppLayoutComponent]
-})
+        BrandLogoComponent], providers: [provideHttpClient(withInterceptorsFromDi())] })
 export class AppLayoutModule { }

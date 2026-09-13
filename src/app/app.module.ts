@@ -7,7 +7,7 @@ import { NotfoundComponent } from './ims/components/notfound/notfound.component'
 import { environment } from '../environments/environment';
 import { TranslateLoader, TranslateModule, TranslateService } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
-import { HttpClient, HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { HttpClient, HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
@@ -56,15 +56,12 @@ function initializeKeycloak(keycloak: KeycloakService) {
   }
 
 
-@NgModule({
-    declarations: [
+@NgModule({ declarations: [
         AppComponent, NotfoundComponent
     ],
-    imports: [
-        AppRoutingModule,
+    bootstrap: [AppComponent], imports: [AppRoutingModule,
         AppLayoutModule,
         BrowserModule,
-        HttpClientModule,
         OrganizationChartModule,
         ZXingScannerModule,
         TranslateModule.forRoot({
@@ -78,9 +75,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
         }),
         KeycloakAngularModule,
         BrandLogoComponent,
-        LicenseActivationComponent,
-    ],
-    providers: [
+        LicenseActivationComponent], providers: [
         MessageService,
         TranslateService,
         {
@@ -109,8 +104,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
             multi: true
         },
         // { provide: LocationStrategy, useClass: HashLocationStrategy },
-        {provide : APP_INITIALIZER, deps : [KeycloakService],useFactory : initializeKeycloak, multi : true}
-    ],
-    bootstrap: [AppComponent]
-})
+        { provide: APP_INITIALIZER, deps: [KeycloakService], useFactory: initializeKeycloak, multi: true },
+        provideHttpClient(withInterceptorsFromDi())
+    ] })
 export class AppModule { }
