@@ -1,3 +1,10 @@
 {
-    "angular.enable-strict-mode-prompt": false
+    "angular.enable-strict-mode-prompt": false,
+
+    // Analyze this workspace with the TypeScript the build actually uses (5.5.4, pinned in
+    // package.json for Angular 18) instead of whatever version the editor ships with. Editors
+    // bundle their own TS and upgrade it on their own schedule; when that drifts a major version
+    // ahead, the language service reports errors on code the CLI compiles cleanly, which reads as
+    // "the project is broken" when nothing is wrong. Both must be the same compiler.
+    "typescript.tsdk": "node_modules/typescript/lib"
 }
