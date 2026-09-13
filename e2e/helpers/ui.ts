@@ -93,6 +93,18 @@ export function row(page: Page, text: string): Locator {
 }
 
 /**
+ * The selection checkbox in a row.
+ *
+ * Not `getByRole('checkbox')`: that finds PrimeNG's visually hidden accessibility input, which
+ * cannot be clicked and does not carry the handler — the styled box beside it does. So this
+ * reaches for the component element instead. Like `iconButton`, it is a deliberate dependency on
+ * PrimeNG's own markup, kept here so a rename is one edit rather than one per spec.
+ */
+export function rowCheckbox(scope: Locator): Locator {
+    return scope.locator('p-tablecheckbox');
+}
+
+/**
  * Waits for a toast saying this.
  *
  * Secondary evidence on purpose. Toasts dismiss themselves after a few seconds, so a spec that

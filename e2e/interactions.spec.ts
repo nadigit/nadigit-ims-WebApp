@@ -7,6 +7,7 @@ import {
     expectToast,
     iconButton,
     row,
+    rowCheckbox,
     save,
     search,
     toolbar,
@@ -283,5 +284,134 @@ test.describe('dialogs open on the heavier pages', () => {
 
         await expect(dialog(page)).toBeVisible();
         await assertHealthy(problems, 'products new dialog', testInfo);
+    });
+});
+
+test.describe('the New button opens its dialog', () => {
+    /**
+     * The primary action on every list page the suite does not cover in depth.
+     *
+     * Broad rather than deep on purpose. "New" is the most common labelled pButton in the app, and
+     * the PrimeNG migration's failure mode is that such a button renders with no label at all — at
+     * which point getByRole stops finding it and every one of these fails. That makes this the
+     * cheapest possible net for the regression, one test per page.
+     *
+     * It asserts the dialog appears and stops there. Closing, validating and saving are covered
+     * properly by the round trips above; repeating them here would buy little and cost minutes.
+     */
+    const PAGES: Array<{ name: string; path: string }> = [
+        { name: 'product families', path: 'inventory/product-families' },
+        { name: 'shops', path: 'inventory/shops' },
+        { name: 'expenses', path: 'finance/expenses' },
+        { name: 'payments', path: 'finance/payments' },
+        { name: 'refunds', path: 'finance/refunds' },
+        { name: 'purchase credits', path: 'finance/purchase-credits' },
+        { name: 'financial documents', path: 'finance/financial-documents' },
+        { name: 'purchases', path: 'purchases/purchases' },
+        { name: 'purchase returns', path: 'purchases/purchase-returns' },
+        { name: 'orders', path: 'sales/orders' },
+        { name: 'sales returns', path: 'sales/returns' },
+        { name: 'users', path: 'administration/users' },
+    ];
+
+    for (const p of PAGES) {
+        test(p.name, async ({ page }, testInfo) => {
+            const problems = watchForProblems(page);
+            await visit(page, p.path);
+
+            // .first(): a few of these pages carry a second New in an empty-state panel.
+            await button(toolbar(page), 'New').first().click();
+
+            // Transactional forms load suppliers, shops and tax rules before they draw.
+            await expect(dialog(page).first()).toBeVisible({ timeout: 30_000 });
+
+            await assertHealthy(problems, `${p.name} new dialog`, testInfo);
+        });
+    }
+});
+
+test.describe.serial('shops', () => {
+    // The third of the quick-create entities, after suppliers and warehouses. Worth its own round
+    // trip because quick-create is where the plan caps live, and shops are the one the POS needs.
+    const NAME = uniqueName('Shop');
+
+    test('creating a shop adds it to the list', async ({ page }) => {
+        await visit(page, 'inventory/shops');
+        await button(toolbar(page), 'New').first().click();
+
+        const form = dialog(page, 'Shop Details');
+        await expect(form).toBeVisible();
+        await form.locator('#name').fill(NAME);
+        await save(page, form);
+
+        await clearToasts(page);
+        await search(page, NAME);
+        await expect(row(page, NAME)).toBeVisible();
+    });
+
+    test('deleting a shop removes it', async ({ page }) => {
+        await visit(page, 'inventory/shops');
+        await search(page, NAME);
+
+        await iconButton(row(page, NAME), 'trash').click();
+
+        const confirm = dialog(page, 'Confirm');
+        await expect(confirm).toBeVisible();
+        await button(confirm, 'Yes').click();
+        await expect(confirm).toBeHidden();
+
+        await clearToasts(page);
+        await page.reload();
+        await page.getByPlaceholder('Search...').first().fill(NAME);
+        await expect(row(page, NAME)).toHaveCount(0);
+    });
+});
+
+test.describe.serial('selecting rows and deleting them together', () => {
+    /**
+     * The other half of every list page's toolbar.
+     *
+     * Row checkboxes gate the Delete button — it is disabled until something is selected — so this
+     * covers three things nothing else does: the checkbox renders and responds, selection reaches
+     * the component, and the toolbar's second button works. All of it is PrimeNG table internals
+     * driven through ARIA rather than class names, so it survives the re-skin.
+     */
+    const NAME = uniqueName('Bulk');
+
+    test('a category to delete', async ({ page }) => {
+        await visit(page, 'inventory/categories');
+        await button(toolbar(page), 'New').click();
+
+        const form = dialog(page, 'Category Details');
+        await form.locator('#categoryName').fill(NAME);
+        await save(page, form);
+
+        await clearToasts(page);
+        await search(page, NAME);
+        await expect(row(page, NAME)).toBeVisible();
+    });
+
+    test('selecting it enables Delete, and confirming removes it', async ({ page }) => {
+        await visit(page, 'inventory/categories');
+        await search(page, NAME);
+
+        const remove = button(toolbar(page), 'Delete');
+        // Disabled until there is a selection: deleting nothing should not be offered.
+        await expect(remove).toBeDisabled();
+
+        await rowCheckbox(row(page, NAME)).click();
+        await expect(remove).toBeEnabled();
+
+        await remove.click();
+
+        const confirm = dialog(page, 'Confirm');
+        await expect(confirm).toBeVisible();
+        await button(confirm, 'Yes').click();
+        await expect(confirm).toBeHidden();
+
+        await clearToasts(page);
+        await page.reload();
+        await page.getByPlaceholder('Search...').first().fill(NAME);
+        await expect(row(page, NAME)).toHaveCount(0);
     });
 });
