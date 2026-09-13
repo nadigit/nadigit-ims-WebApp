@@ -415,3 +415,110 @@ test.describe.serial('selecting rows and deleting them together', () => {
         await expect(row(page, NAME)).toHaveCount(0);
     });
 });
+
+test.describe.serial('products', () => {
+    /**
+     * The heaviest form in the app, and the only round trip here that needs fixtures.
+     *
+     * A physical item requires a category, a warehouse and a supplier before it can be saved, so
+     * this creates all three, uses them, and takes them away again in reverse order. That is worth
+     * the length: products are the entity everything else references, and this is the only spec
+     * that drives three PrimeNG dropdowns and a currency input in one form.
+     */
+    const CATEGORY = uniqueName('PCat');
+    const WAREHOUSE = uniqueName('PWh');
+    const SUPPLIER = uniqueName('PSup');
+    const NAME = uniqueName('Item');
+    const REFERENCE = `E2E-${Date.now().toString().slice(-8)}`;
+
+    /** A p-inputNumber has no id to aim at, so it is found by the label sitting above it. */
+    function numberField(form: ReturnType<typeof dialog>, label: string) {
+        return form.locator('div.field').filter({ hasText: label }).first().locator('input').first();
+    }
+
+    /** Opens a dropdown and picks an option by its visible text. */
+    async function choose(page: Parameters<typeof dialog>[0], control: ReturnType<typeof dialog>, option: string) {
+        await control.click();
+        await page.getByRole('option', { name: option }).first().click();
+    }
+
+    test('fixtures: a category, a warehouse and a supplier', async ({ page }) => {
+        for (const fixture of [
+            { path: 'inventory/categories', header: 'Category Details', field: '#categoryName', value: CATEGORY },
+            { path: 'inventory/warehouses', header: 'New Warehouse', field: '#name', value: WAREHOUSE },
+            { path: 'purchases/suppliers', header: 'Supplier Details', field: '#name', value: SUPPLIER },
+        ]) {
+            await visit(page, fixture.path);
+            await button(toolbar(page), 'New').first().click();
+
+            const form = dialog(page, fixture.header);
+            await expect(form).toBeVisible();
+            await form.locator(fixture.field).fill(fixture.value);
+            await save(page, form);
+            await clearToasts(page);
+        }
+    });
+
+    test('creating an item adds it to the list', async ({ page }) => {
+        await visit(page, 'inventory/products');
+        await page.getByRole('button', { name: 'New' }).first().click();
+
+        const form = dialog(page, 'Item Details');
+        await expect(form).toBeVisible();
+
+        // Item Type already defaults to the physical item, which is the path that requires a
+        // supplier, a warehouse and both prices. Asserted rather than selected: if the default ever
+        // changes, the rest of this spec is filling in the wrong form.
+        await expect(form.locator('div.field').filter({ hasText: 'Item Type' }).first()).toContainText('Item (physical)');
+        await form.locator('input[name="name"]').fill(NAME);
+        await form.locator('input[name="reference"]').fill(REFERENCE);
+
+        await choose(page, form.locator('p-dropdown:has(#category)'), CATEGORY);
+        await choose(page, form.locator('p-dropdown:has(#warehouse)'), WAREHOUSE);
+        await choose(page, form.locator('p-dropdown:has(#supplier)'), SUPPLIER);
+
+        await numberField(form, 'Buying Price').fill('10');
+        await numberField(form, 'Selling Price').fill('20');
+
+        await save(page, form);
+        await clearToasts(page);
+
+        await search(page, NAME);
+        await expect(row(page, NAME)).toBeVisible();
+    });
+
+    test('deleting the item removes it', async ({ page }) => {
+        await visit(page, 'inventory/products');
+        await search(page, NAME);
+
+        await iconButton(row(page, NAME), 'trash').first().click();
+
+        const confirm = dialog(page, 'Confirm');
+        await expect(confirm).toBeVisible();
+        await button(confirm, 'Yes').click();
+        await expect(confirm).toBeHidden();
+
+        await clearToasts(page);
+        await page.reload();
+        await page.getByPlaceholder('Search...').first().fill(NAME);
+        await expect(row(page, NAME)).toHaveCount(0);
+    });
+
+    test('fixtures removed', async ({ page }) => {
+        for (const fixture of [
+            { path: 'purchases/suppliers', value: SUPPLIER },
+            { path: 'inventory/warehouses', value: WAREHOUSE },
+            { path: 'inventory/categories', value: CATEGORY },
+        ]) {
+            await visit(page, fixture.path);
+            await search(page, fixture.value);
+            await iconButton(row(page, fixture.value), 'trash').first().click();
+
+            const confirm = dialog(page, 'Confirm');
+            await expect(confirm).toBeVisible();
+            await button(confirm, 'Yes').click();
+            await expect(confirm).toBeHidden();
+            await clearToasts(page);
+        }
+    });
+});
