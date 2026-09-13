@@ -431,11 +431,6 @@ test.describe.serial('products', () => {
     const NAME = uniqueName('Item');
     const REFERENCE = `E2E-${Date.now().toString().slice(-8)}`;
 
-    /** A p-inputNumber has no id to aim at, so it is found by the label sitting above it. */
-    function numberField(form: ReturnType<typeof dialog>, label: string) {
-        return form.locator('div.field').filter({ hasText: label }).first().locator('input').first();
-    }
-
     /** Opens a dropdown and picks an option by its visible text. */
     async function choose(page: Parameters<typeof dialog>[0], control: ReturnType<typeof dialog>, option: string) {
         await control.click();
@@ -469,16 +464,17 @@ test.describe.serial('products', () => {
         // Item Type already defaults to the physical item, which is the path that requires a
         // supplier, a warehouse and both prices. Asserted rather than selected: if the default ever
         // changes, the rest of this spec is filling in the wrong form.
-        await expect(form.locator('div.field').filter({ hasText: 'Item Type' }).first()).toContainText('Item (physical)');
-        await form.locator('input[name="name"]').fill(NAME);
-        await form.locator('input[name="reference"]').fill(REFERENCE);
+        await expect(form.locator('p-dropdown:has(#productType)')).toContainText('Item (physical)');
+        await form.locator('#productName').fill(NAME);
+        await form.locator('#reference').fill(REFERENCE);
 
         await choose(page, form.locator('p-dropdown:has(#category)'), CATEGORY);
         await choose(page, form.locator('p-dropdown:has(#warehouse)'), WAREHOUSE);
         await choose(page, form.locator('p-dropdown:has(#supplier)'), SUPPLIER);
 
-        await numberField(form, 'Buying Price').fill('10');
-        await numberField(form, 'Selling Price').fill('20');
+        // inputId lands on p-inputNumber's own input, so these are the fields themselves.
+        await form.locator('#buyingPrice').fill('10');
+        await form.locator('#sellingPrice').fill('20');
 
         await save(page, form);
         await clearToasts(page);

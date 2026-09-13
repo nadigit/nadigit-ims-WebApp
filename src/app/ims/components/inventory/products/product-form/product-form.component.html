@@ -66,7 +66,7 @@
 										<i class="pi pi-images"></i>
 									</div>
 									<div class="min-w-0">
-										<label for="productImage" class="product-media-title block m-0">{{'product_image' | translate}}</label>
+										<span class="product-media-title block m-0">{{'product_image' | translate}}</span>
 									</div>
 								</div>
 								<span class="product-media-count-chip" *ngIf="productImages?.length || pendingPreviewUrls?.length">
@@ -273,7 +273,7 @@
 											<i class="pi pi-cloud-upload"></i>
 										</div>
 										<div class="min-w-0">
-											<label for="productImage" class="product-media-title block m-0">{{'product_image' | translate}}</label>
+											<span class="product-media-title block m-0">{{'product_image' | translate}}</span>
 										</div>
 									</div>
 								</div>
@@ -516,11 +516,11 @@
 							</header>
 							<div class="grid ims-form-section__body ims-form-section__body--sidebar">
 								<div class="field col-12">
-									<label for="costingMethod" class="ims-form-label">
+									<label for="productCostingMethod" class="ims-form-label">
 										{{ 'product_costing_method' | translate }}
 										<app-field-help [text]="'costing_method_inheritance_help' | translate"></app-field-help>
 									</label>
-									<p-dropdown appendTo="body" inputId="costingMethod" [(ngModel)]="localProduct.costingMethod"
+									<p-dropdown appendTo="body" inputId="productCostingMethod" [(ngModel)]="localProduct.costingMethod"
 										[ngModelOptions]="{standalone: true}" name="costingMethod" [options]="costingMethods"
 										optionLabel="label" optionValue="value" styleClass="w-full"
 										placeholder="{{ 'inherit_costing_method' | translate }}" [showClear]="true"
@@ -584,7 +584,7 @@
 								<app-field-help *ngIf="activityProfileService.isPharmacyProfile" icon="lock" tone="warn"
 									[text]="'profile_mode_pharmacy_product_only' | translate"></app-field-help>
 								</label>
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.productType"
+							<p-dropdown appendTo="body" inputId="productType" [(ngModel)]="localProduct.productType"
 								[ngModelOptions]="{standalone: true}" name="productType" [options]="profileAwareProductTypeOptions"
 								optionDisabled="disabled"
 								optionLabel="label" optionValue="value"
@@ -613,11 +613,11 @@
 
 						<!-- Product Name -->
 						<div class="field col-12">
-							<label for="name" class="ims-form-label">
+							<label for="productName" class="ims-form-label">
 								{{'product_name' | translate}} <span class="required-asterisk">*</span>
 							</label>
 							<div class="p-inputgroup">
-								<input type="text" pInputText name="name" [(ngModel)]="localProduct.name"
+								<input type="text" pInputText id="productName" name="name" [(ngModel)]="localProduct.name"
 									[ngModelOptions]="{standalone: true}" required autofocus
 									[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.name}" maxlength="50"
 									placeholder="{{'enter_product_name' | translate}}"
@@ -642,7 +642,7 @@
 								{{'product_reference' | translate}} <span class="required-asterisk">*</span>
 							</label>
 							<div class="p-inputgroup">
-								<input type="text" pInputText name="reference" [(ngModel)]="localProduct.reference"
+								<input type="text" pInputText id="reference" name="reference" [(ngModel)]="localProduct.reference"
 									[ngModelOptions]="{standalone: true}" required
 									[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.reference}"
 									placeholder="{{'enter_product_reference' | translate}}"
@@ -657,10 +657,10 @@
 						</div>
 
 						<div class="field col-12">
-							<label for="description" class="ims-form-label">
+							<label for="productDescription" class="ims-form-label">
 								{{'product_description' | translate}}
 							</label>
-							<textarea pInputTextarea id="description" name="description" [(ngModel)]="localProduct.description"
+							<textarea pInputTextarea id="productDescription" name="description" [(ngModel)]="localProduct.description"
 								[ngModelOptions]="{standalone: true}" rows="3" [autoResize]="true"
 								[maxlength]="productDescriptionMaxLength"
 								placeholder="{{'enter_product_description' | translate}}"></textarea>
@@ -706,7 +706,7 @@
 								{{ 'stock_tracking_mode' | translate }}
 								<app-field-help [text]="'stock_tracking_mode_help' | translate"></app-field-help>
 							</label>
-							<p-dropdown appendTo="body" [(ngModel)]="localProduct.stockTrackingMode"
+							<p-dropdown appendTo="body" inputId="stockTrackingMode" [(ngModel)]="localProduct.stockTrackingMode"
 								[ngModelOptions]="{standalone: true}" name="stockTrackingMode"
 								[options]="stockTrackingModeOptions" optionLabel="label" optionValue="value"
 								(onChange)="onStockTrackingModeChange()"
@@ -722,7 +722,7 @@
 								<app-field-help *ngIf="localProduct?.productId" icon="lock" tone="warn"
 									[text]="'quantity_adjustment_help' | translate"></app-field-help>
 							</label>
-							<p-inputNumber name="quantityAvailable" [(ngModel)]="localProduct.quantityAvailable"
+							<p-inputNumber inputId="quantityAvailable" name="quantityAvailable" [(ngModel)]="localProduct.quantityAvailable"
 								[ngModelOptions]="{standalone: true}" mode="decimal" [showButtons]="true" [min]="0"
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && localProduct.quantityAvailable === null}"
 								placeholder="0" [readonly]="!!localProduct?.productId"
@@ -759,7 +759,7 @@
 									<app-field-help *ngIf="localProduct?.productId" icon="lock" tone="warn"
 										[text]="'quantity_adjustment_help' | translate"></app-field-help>
 									</label>
-							<p-inputNumber name="displayQuantityAvailable" [(ngModel)]="displayQuantityAvailableUi"
+							<p-inputNumber inputId="displayQuantityAvailable" name="displayQuantityAvailable" [(ngModel)]="displayQuantityAvailableUi"
 								[ngModelOptions]="{standalone: true}" mode="decimal" [showButtons]="true" [min]="0"
 								[minFractionDigits]="0" [maxFractionDigits]="quantityInputDecimals()"
 								[step]="quantityInputStep()"
@@ -772,7 +772,7 @@
 						</div>
 
 						<div class="field col-12 md:col-4">
-							<label for="measureUnit" class="ims-form-label">
+							<label for="measureUnitProduct" class="ims-form-label">
 								{{'product_measure_unit' | translate}}
 							</label>
 							<p-dropdown appendTo="body" inputId="measureUnitProduct" [(ngModel)]="localProduct.measureUnit"
@@ -810,7 +810,7 @@
 									<app-field-help *ngIf="isPrepaidPool()" [text]="'product_prepaid_buying_price_help' | translate:prepaidCurrencyParams"></app-field-help>
 									<app-field-help *ngIf="isService()" [text]="'product_buying_price_optional_services' | translate"></app-field-help>
 									</label>
-							<p-inputNumber [(ngModel)]="localProduct.buyingPrice" [ngModelOptions]="{standalone: true}"
+							<p-inputNumber inputId="buyingPrice" [(ngModel)]="localProduct.buyingPrice" [ngModelOptions]="{standalone: true}"
 								mode="currency" [currency]="currency" [showButtons]="true" [min]="0" [max]="9999999999"
 								[readonly]="!isAdmin && localProduct?.productId">
 								<ng-template pTemplate="prefix">
@@ -834,7 +834,7 @@
 									<span class="required-asterisk">*</span>
 									<app-field-help *ngIf="isPrepaidPool()" [text]="'product_prepaid_selling_price_help' | translate:prepaidCurrencyParams"></app-field-help>
 									</label>
-							<p-inputNumber [(ngModel)]="localProduct.sellingPrice" [ngModelOptions]="{standalone: true}"
+							<p-inputNumber inputId="sellingPrice" [(ngModel)]="localProduct.sellingPrice" [ngModelOptions]="{standalone: true}"
 								mode="currency" [currency]="currency" [showButtons]="true" [min]="0"
 								[ngClass]="{'ng-invalid ng-dirty' : submitted && !localProduct.sellingPrice}"
 								[max]="isPrepaidPool() ? 99.99 : 9999999999" required [readonly]="!isAdmin && localProduct?.productId">
