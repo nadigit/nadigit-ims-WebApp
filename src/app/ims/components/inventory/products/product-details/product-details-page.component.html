@@ -475,9 +475,11 @@
                                 <span>{{ 'product_description' | translate }}</span>
                             </div>
                             <div class="card-body">
-                                <p class="m-0 line-height-3 text-700" 
-                                    [innerHTML]="product.description || ('no_description_available' | translate)">
-                                </p>
+                                <!-- Plain text, never innerHTML. A description is free text typed by anyone who
+                                     can edit the product, so rendering it as HTML turns every sanitizer bypass in
+                                     the framework into a stored-XSS path. pre-line keeps the line breaks people
+                                     actually type. -->
+                                <p class="m-0 line-height-3 text-700" style="white-space: pre-line;">{{ product.description || ('no_description_available' | translate) }}</p>
                             </div>
                         </div>
                     </div>
