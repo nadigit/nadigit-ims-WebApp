@@ -9,7 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputTextModule } from 'primeng/inputtext';
 import { DropdownModule } from 'primeng/dropdown';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 
@@ -47,7 +47,7 @@ export interface CustomerFormDialogConfig {
     RadioButtonModule,
     InputTextModule,
     DropdownModule,
-    InputTextareaModule,
+    TextareaModule,
     InputSwitchModule,
     TranslateModule
   ],

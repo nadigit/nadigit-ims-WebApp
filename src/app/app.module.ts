@@ -10,6 +10,8 @@ import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { HttpClient, HTTP_INTERCEPTORS, provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
+import { providePrimeNG } from 'primeng/config';
+import Lara from '@primeng/themes/lara';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { OrganizationChartModule } from 'primeng/organizationchart';
 import { MessageService } from 'primeng/api';
@@ -76,6 +78,25 @@ function initializeKeycloak(keycloak: KeycloakService) {
         KeycloakAngularModule,
         BrandLogoComponent,
         LicenseActivationComponent], providers: [
+        // Lara with an indigo primary is what the vendored lara-light-indigo theme was, so the
+        // starting point matches what the product looked like on PrimeNG 17.
+        //
+        // darkModeSelector reuses the class the layout service already toggles on <html>, so dark
+        // mode stops being a stylesheet swap and becomes what it always should have been: a class.
+        //
+        // cssLayer matters more than either. PrimeNG 18 generates its CSS at runtime, and this app
+        // carries 14,033 .p-* selectors written against the old theme. Layered styles lose to
+        // unlayered ones whatever the specificity, so naming a layer here keeps every one of those
+        // overrides in charge instead of leaving the outcome to source order.
+        providePrimeNG({
+            theme: {
+                preset: Lara,
+                options: {
+                    darkModeSelector: '.layout-theme-dark',
+                    cssLayer: { name: 'primeng', order: 'primeng' },
+                },
+            },
+        }),
         MessageService,
         TranslateService,
         {

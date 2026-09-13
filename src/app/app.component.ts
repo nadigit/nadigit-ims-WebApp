@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { PrimeNGConfig } from 'primeng/api';
+import { PrimeNG } from 'primeng/config';
 import { TranslationService } from './services/translation.service';
 import { KeycloakService } from 'keycloak-angular';
 import { KeycloakProfile } from 'keycloak-js';
@@ -33,7 +33,7 @@ export class AppComponent implements OnInit, OnDestroy {
     private readonly activityProfileBannerStorageKey = 'ims_activity_profile_banner_dismissed';
     private activityProfileCtxSub?: Subscription;
 
-    constructor(private primengConfig: PrimeNGConfig,
+    constructor(private primengConfig: PrimeNG,
         private translate: TranslateService,
         private translateService: TranslationService,
         public keycloakService: KeycloakService,
@@ -47,7 +47,7 @@ export class AppComponent implements OnInit, OnDestroy {
     ) { }
 
     async ngOnInit() {
-        this.primengConfig.ripple = true;
+        this.primengConfig.ripple.set(true);
 
         // Track backend availability for global UX banner
         this.backendUnavailable$ = this.backendStatusService.backendUnavailable$;
@@ -76,7 +76,7 @@ export class AppComponent implements OnInit, OnDestroy {
             
             // Configure PrimeNG RTL
             const isRTL = lang === 'ar';
-            this.primengConfig.ripple = true;
+            this.primengConfig.ripple.set(true);
             // Note: PrimeNG components will automatically respect the dir attribute on html/body
 
             this.translate.get([

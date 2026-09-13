@@ -1,6 +1,6 @@
 import { Component, EventEmitter, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { MessageService, PrimeNGConfig } from 'primeng/api';
+import { MessageService } from 'primeng/api';
 import { Table } from 'primeng/table';
 import { Supplier } from 'src/app/models/supplier';
 import { Country, State } from 'country-state-city';

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { SidebarModule } from 'primeng/sidebar';
 import { BadgeModule } from 'primeng/badge';
 import { RadioButtonModule } from 'primeng/radiobutton';
@@ -50,7 +50,7 @@ import { BrandLogoComponent } from '../shared/brand-logo';
         FormsModule,
         BrowserAnimationsModule,
         InputTextModule,
-        InputTextareaModule,
+        TextareaModule,
         SidebarModule,
         BadgeModule,
         RadioButtonModule,

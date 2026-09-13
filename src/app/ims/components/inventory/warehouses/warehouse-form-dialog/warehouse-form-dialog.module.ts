@@ -6,7 +6,7 @@ import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { WarehouseFormDialogComponent } from './warehouse-form-dialog.component';
@@ -25,7 +25,7 @@ import { WarehouseFormDialogComponent } from './warehouse-form-dialog.component'
     ButtonModule,
     RippleModule,
     InputTextModule,
-    InputTextareaModule,
+    TextareaModule,
     DropdownModule,
     SharedModule,
   ],

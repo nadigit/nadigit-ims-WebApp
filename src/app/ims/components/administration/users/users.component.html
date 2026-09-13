@@ -509,7 +509,7 @@
                                     <label for="roleDescription" class="ims-form-label">
                                         {{ 'role_description' | translate }} <span class="required-asterisk">*</span>
                                     </label>
-                                    <textarea id="roleDescription" rows="3" pInputTextarea class="w-full" name="description"
+                                    <textarea id="roleDescription" rows="3" pTextarea class="w-full" name="description"
                                         ngDefaultControl [(ngModel)]="appRole.description" required
                                         [ngClass]="{'ng-invalid ng-dirty': submitted && !appRole.description}"></textarea>
                                     <small class="p-error" *ngIf="submitted && !appRole.description">

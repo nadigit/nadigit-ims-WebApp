@@ -1113,7 +1113,7 @@
               </div>
               <textarea
                 rows="3"
-                pInputTextarea
+                pTextarea
                 [(ngModel)]="orderNotes"
                 [placeholder]="'add_order_notes' | translate"
                 class="pos-notes-textarea">
@@ -1712,7 +1712,7 @@
           <label class="block text-600 mb-2">{{ 'notes' | translate }}</label>
           <textarea
             [(ngModel)]="checkoutNotes"
-            pInputTextarea
+            pTextarea
             [rows]="3"
             [placeholder]="'add_order_notes' | translate"
             class="w-full">
@@ -1931,7 +1931,7 @@
         </label>
         <textarea
           [(ngModel)]="sessionNotes"
-          pInputTextarea
+          pTextarea
           [rows]="3"
           [placeholder]="'add_session_notes' | translate"
           styleClass="w-full">
@@ -2031,7 +2031,7 @@
         </label>
         <textarea
           [(ngModel)]="closingSessionNotes"
-          pInputTextarea
+          pTextarea
           [rows]="3"
           [placeholder]="'add_closing_notes' | translate"
           styleClass="w-full"

@@ -11,7 +11,7 @@ import { ToastModule } from 'primeng/toast';
 import { ToolbarModule } from 'primeng/toolbar';
 import { RatingModule } from 'primeng/rating';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -33,7 +33,6 @@ import { CalendarModule } from 'primeng/calendar';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { DisableDblClickDirective } from 'src/app/utils/disable_dblclick.directive';
 import { TooltipModule } from 'primeng/tooltip';
-import { DynamicDialogModule } from 'primeng/dynamicdialog';
 import { ChipModule } from 'primeng/chip';
 import { ReactiveFormsModule } from '@angular/forms';
 import { TabViewModule } from 'primeng/tabview';
@@ -64,7 +63,7 @@ import { PageNoteComponent } from 'src/app/shared/page-note';
         ToolbarModule,
         RatingModule,
         InputTextModule,
-        InputTextareaModule,
+        TextareaModule,
         DropdownModule,
         RadioButtonModule,
         InputNumberModule,
@@ -83,7 +82,6 @@ import { PageNoteComponent } from 'src/app/shared/page-note';
         SelectButtonModule,
         CalendarModule,
         TooltipModule,
-        DynamicDialogModule,
         ChipModule,
         ReactiveFormsModule,
         TabViewModule,
