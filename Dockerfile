@@ -1,5 +1,7 @@
 # Stage 1: Compile and Build Angular codebase
-FROM node:18 AS build
+# Node 18 is end of support, and Angular 20 (see docs/ANGULAR_UPGRADE_PLAN.md in the server repo)
+# will not build on it. Pinned to a major so a rebuild cannot silently move underneath us.
+FROM node:22 AS build
 
 WORKDIR /app
 COPY . /app/
@@ -8,7 +10,9 @@ RUN npm install --legacy-peer-deps
 RUN npm run build
 
 # Stage 2: Serve app with nginx server
-FROM nginx:alpine
+# Pinned to the same minor the deployment's reverse proxy uses. `nginx:alpine` floats, and a
+# floating base image has already broken this product once (the Keycloak login theme).
+FROM nginx:1.27-alpine
 
 # envsubst is required by entrypoint.sh (not included in nginx:alpine by default)
 RUN apk add --no-cache gettext
