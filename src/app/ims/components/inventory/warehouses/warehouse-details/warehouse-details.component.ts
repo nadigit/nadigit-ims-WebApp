@@ -386,7 +386,15 @@ export class WarehouseDetailsComponent implements OnInit, OnDestroy {
         this.selectedCountry = element;
       }
     });
-    this.states = this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode);
+    // A record with no country - quick-create never asks for one - or a country that no longer
+    // matches the list leaves selectedCountry unset, and this dereferenced it unconditionally.
+    // The throw was not contained: callers are template expressions shaped
+    // `edit(row); $event.stopPropagation()`, so failing here skipped stopPropagation and the
+    // click fell through to the row handler. The Edit button navigated to the details page
+    // instead of opening the dialog, which made such a record uneditable from the list.
+    this.states = this.selectedCountry
+      ? this.locationService.getStatesByCountryCode(this.selectedCountry.isoCode)
+      : [];
   }
 
   filterProducts(): void {
