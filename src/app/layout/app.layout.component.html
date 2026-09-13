@@ -226,7 +226,7 @@
 
             <!-- Edit mode: inline composer -->
             <div *ngIf="isCopilotEditing(turn)" class="copilot-edit-box">
-              <textarea pInputTextarea [autoResize]="true" rows="1"
+              <textarea pTextarea [autoResize]="true" rows="1"
                 class="w-full copilot-edit-textarea"
                 [(ngModel)]="copilotEditDraft"
                 (keydown)="onCopilotEditKeydown($event, turn)"></textarea>
@@ -625,7 +625,7 @@
         (click)="toggleCopilotDictation()"></button>
       <textarea
         #copilotInputField
-        pInputTextarea
+        pTextarea
         [autoResize]="true"
         rows="1"
         class="w-full copilot-prompt-textarea"

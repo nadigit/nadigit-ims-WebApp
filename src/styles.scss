@@ -1,7 +1,8 @@
 $gutter: 1rem;
 @import "assets/layout/styles/layout/layout.scss";
 
-@import "../node_modules/primeng/resources/primeng.min.css";
+// PrimeNG 18 has no resources/primeng.min.css: component styles come from the theme tokens
+// configured in app.module.ts (providePrimeNG) and are injected at runtime.
 @import "../node_modules/primeflex/primeflex.scss";
 @import "../node_modules/primeicons/primeicons.css";
 @import "../node_modules/driver.js/dist/driver.css";

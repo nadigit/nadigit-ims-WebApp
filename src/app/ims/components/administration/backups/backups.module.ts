@@ -16,7 +16,7 @@ import { CardModule } from 'primeng/card';
 import { DropdownModule } from 'primeng/dropdown';
 import { CheckboxModule } from 'primeng/checkbox';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { TranslateModule } from '@ngx-translate/core';
 
 @NgModule({
@@ -37,7 +37,7 @@ import { TranslateModule } from '@ngx-translate/core';
     DropdownModule,
     CheckboxModule,
     InputTextModule,
-    InputTextareaModule,
+    TextareaModule,
     TranslateModule
   ],
   declarations: [BackupsComponent]

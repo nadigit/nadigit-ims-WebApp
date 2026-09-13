@@ -11,7 +11,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DropdownModule } from 'primeng/dropdown';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { FileUploadModule } from 'primeng/fileupload';
 import { ImageModule } from 'primeng/image';
 import { GalleriaModule } from 'primeng/galleria';
@@ -61,7 +61,7 @@ import { PageNoteComponent } from 'src/app/shared/page-note';
     InputTextModule,
     InputNumberModule,
     DropdownModule,
-    InputTextareaModule,
+    TextareaModule,
     FileUploadModule,
     ImageModule,
     GalleriaModule,

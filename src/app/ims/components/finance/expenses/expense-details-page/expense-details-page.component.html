@@ -589,7 +589,7 @@
             </div>
             <div class="flex flex-column gap-2">
                 <label for="rejR">{{ 'rejection_reason' | translate }} ({{ 'optional' | translate }})</label>
-                <textarea id="rejR" pInputTextarea [(ngModel)]="rejectionReason" rows="3" class="w-full" [placeholder]="'enter_rejection_reason' | translate"></textarea>
+                <textarea id="rejR" pTextarea [(ngModel)]="rejectionReason" rows="3" class="w-full" [placeholder]="'enter_rejection_reason' | translate"></textarea>
             </div>
         </div>
         <ng-template pTemplate="footer">
