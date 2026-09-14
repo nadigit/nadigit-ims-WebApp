@@ -141,7 +141,7 @@
             <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
           </div>
         </div>
-        <p-table
+        <p-table [size]="'small'" [stripedRows]="true"
           *ngIf="(!isInitialLoadBackups || backups.length) && (!isLoadingBackups || backups.length)"
           [value]="backups"
           [loading]="isLoadingBackups && backups.length > 0"
@@ -149,7 +149,6 @@
           [rows]="pageSizeService.get(TablePageSizeKeys.backups, [10, 20, 50])"
           [rowsPerPageOptions]="[10, 20, 50]"
           (onPage)="pageSizeService.onPage(TablePageSizeKeys.backups, [10, 20, 50], $event)"
-          styleClass="p-datatable-sm p-datatable-striped"
           responsiveLayout="scroll">
           <ng-template pTemplate="header">
             <tr>
@@ -482,7 +481,7 @@
             <p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner>
           </div>
         </div>
-        <p-table
+        <p-table [size]="'small'" [stripedRows]="true"
           *ngIf="(!isInitialLoadRestoreJobs || restoreJobs.length) && (!isLoadingRestoreJobs || restoreJobs.length)"
           [value]="restoreJobs"
           [loading]="isLoadingRestoreJobs && restoreJobs.length > 0"
@@ -490,7 +489,6 @@
           [rows]="pageSizeService.get(TablePageSizeKeys.backupsHistory, [10, 20, 50])"
           [rowsPerPageOptions]="[10, 20, 50]"
           (onPage)="pageSizeService.onPage(TablePageSizeKeys.backupsHistory, [10, 20, 50], $event)"
-          styleClass="p-datatable-sm p-datatable-striped"
           responsiveLayout="scroll">
           <ng-template pTemplate="header">
             <tr>

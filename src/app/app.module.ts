@@ -12,6 +12,7 @@ import { BrowserModule } from '@angular/platform-browser';
 import {KeycloakAngularModule, KeycloakService} from "keycloak-angular";
 import { providePrimeNG } from 'primeng/config';
 import Lara from '@primeng/themes/lara';
+import { definePreset } from '@primeng/themes';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { OrganizationChartModule } from 'primeng/organizationchart';
 import { MessageService } from 'primeng/api';
@@ -58,6 +59,33 @@ function initializeKeycloak(keycloak: KeycloakService) {
   }
 
 
+/**
+ * Lara, repainted in the brand blue.
+ *
+ * The stock preset's primary palette is emerald, so out of the box every accent PrimeNG owns —
+ * selected toggle buttons, links, focus rings, progress bars — came out green while the rest of
+ * the app stayed #1E5EFF. These are the same ten stops already declared as --primary-50..900 in
+ * nadigit-brand.scss; they are repeated here because the theme is generated in TypeScript at
+ * runtime and cannot read a CSS custom property. Keep the two in step.
+ */
+const NadigitLara = definePreset(Lara, {
+    semantic: {
+        primary: {
+            50: '#EEF3FF',
+            100: '#D6E4FF',
+            200: '#ADC8FF',
+            300: '#84ABFF',
+            400: '#5188FF',
+            500: '#1E5EFF',
+            600: '#1850E0',
+            700: '#1340B8',
+            800: '#0E3190',
+            900: '#092368',
+            950: '#061845',
+        },
+    },
+});
+
 @NgModule({ declarations: [
         AppComponent, NotfoundComponent
     ],
@@ -90,7 +118,7 @@ function initializeKeycloak(keycloak: KeycloakService) {
         // overrides in charge instead of leaving the outcome to source order.
         providePrimeNG({
             theme: {
-                preset: Lara,
+                preset: NadigitLara,
                 options: {
                     darkModeSelector: '.layout-theme-dark',
                     cssLayer: { name: 'primeng', order: 'primeng' },

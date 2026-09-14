@@ -380,9 +380,8 @@
 										</div>
 
 										<div class="selected-products-card">
-											<p-table [value]="targetProducts" dataKey="productId"
-												[scrollable]="targetProducts.length > 4" scrollHeight="280px"
-												styleClass="p-datatable-sm selected-products-table">
+											<p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+												[scrollable]="targetProducts.length > 4" scrollHeight="280px">
 												<ng-template pTemplate="header">
 													<tr>
 														<th class="col-product">{{ 'product' | translate }}</th>
@@ -1270,8 +1269,7 @@
 							</header>
 							<div class="ims-form-section__body ims-form-section__body--stack">
 								<div class="return-items-card">
-									<p-table [value]="order.orderItems" [(selection)]="selectedItems"
-										styleClass="p-datatable-sm return-items-table">
+									<p-table [size]="'small'" class="return-items-table" [value]="order.orderItems" [(selection)]="selectedItems">
 										<ng-template pTemplate="header">
 											<tr>
 												<th class="col-image">{{ 'product_image' | translate }}</th>

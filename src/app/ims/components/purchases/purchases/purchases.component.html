@@ -234,15 +234,14 @@
 
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-            <p-table #dt [value]="purchases" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
+            <p-table [showGridlines]="true" #dt [value]="purchases" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
                 [sortField]="'dateOfPurchase'" [sortOrder]="-1"
                 [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [loading]="isLoading"
                 [totalRecords]="totalRecords" [rows]="pageSize"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedPurchases" selectionMode="multiple" [rowHover]="true" dataKey="purchaseId"
-                [expandedRowKeys]="expandedRows"
-                styleClass="p-datatable-gridlines">
+                [expandedRowKeys]="expandedRows">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">
@@ -787,9 +786,8 @@
                             <p-badge [value]="targetProducts.length" severity="info"></p-badge>
                         </div>
 
-                        <p-table [value]="targetProducts" dataKey="productId"
-                            [scrollable]="targetProducts.length > 4" scrollHeight="280px"
-                            styleClass="p-datatable-sm selected-products-table">
+                        <p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+                            [scrollable]="targetProducts.length > 4" scrollHeight="280px">
                             <ng-template pTemplate="header">
                                 <tr>
                                     <th class="col-product">{{ 'product_name' | translate }}</th>

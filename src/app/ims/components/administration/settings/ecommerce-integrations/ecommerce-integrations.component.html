@@ -75,8 +75,7 @@
 			<p class="text-600 text-sm m-0 mb-3 line-height-3">{{ 'ecommerce_integrations_intro' | translate }}</p>
 
 			<!-- Table -->
-			<p-table [value]="rows" dataKey="integrationId" [responsive]="true"
-				styleClass="p-datatable-gridlines">
+			<p-table [showGridlines]="true" [value]="rows" dataKey="integrationId" [responsive]="true">
 				<ng-template pTemplate="header">
 					<tr>
 						<th>{{ 'ecommerce_integration_name' | translate }}</th>

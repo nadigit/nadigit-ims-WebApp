@@ -215,15 +215,14 @@
                 <span>{{ 'credit_transactions' | translate }}</span>
             </div>
             <div class="card-body p-0">
-                <p-table [value]="transactions"
+                <p-table [size]="'small'" [stripedRows]="true" [value]="transactions"
                          [paginator]="true"
                          [rows]="pageSizeService.get(TablePageSizeKeys.creditAccounts, [10, 20, 50])"
                          [rowsPerPageOptions]="[10, 20, 50]"
                          [totalRecords]="totalRecords"
                          [lazy]="true"
                          (onLazyLoad)="onPageChange($event)"
-                         [loading]="isLoading"
-                         styleClass="p-datatable-sm p-datatable-striped">
+                         [loading]="isLoading">
                     <ng-template pTemplate="header">
                         <tr>
                             <th pSortableColumn="transactionDate">

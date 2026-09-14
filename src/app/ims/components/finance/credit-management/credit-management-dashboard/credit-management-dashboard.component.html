@@ -88,7 +88,7 @@
                 </div>
             </div>
             <div class="card-body">
-                <p-table [value]="overLimitAccounts" styleClass="p-datatable-sm p-datatable-gridlines">
+                <p-table [size]="'small'" [showGridlines]="true" [value]="overLimitAccounts">
                     <ng-template pTemplate="header">
                         <tr>
                             <th>{{ 'customer' | translate }}</th>
@@ -132,10 +132,9 @@
                 <h3 class="m-0">{{ 'outstanding_credit_accounts' | translate }}</h3>
             </div>
             <div class="card-body">
-                <p-table [value]="outstandingCreditAccounts" 
+                <p-table [stripedRows]="true" [showGridlines]="true" [value]="outstandingCreditAccounts" 
                          [paginator]="true"
-                         [rows]="10"
-                         styleClass="p-datatable-striped p-datatable-gridlines">
+                         [rows]="10">
                     <ng-template pTemplate="header">
                         <tr>
                             <th pSortableColumn="customer">
@@ -202,7 +201,7 @@
                 <h3 class="m-0">{{ 'recent_credit_transactions' | translate }}</h3>
             </div>
             <div class="card-body">
-                <p-table [value]="recentTransactions" styleClass="p-datatable-sm p-datatable-gridlines">
+                <p-table [size]="'small'" [showGridlines]="true" [value]="recentTransactions">
                     <ng-template pTemplate="header">
                         <tr>
                             <th>{{ 'date' | translate }}</th>

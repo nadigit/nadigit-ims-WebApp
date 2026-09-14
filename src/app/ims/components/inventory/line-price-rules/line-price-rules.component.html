@@ -47,8 +47,7 @@
         </div>
       </div>
 
-      <p-table #dt *ngIf="!isLoading" [value]="rules" dataKey="linePriceRuleId"
-        styleClass="p-datatable-gridlines" responsiveLayout="scroll" [rowHover]="true"
+      <p-table [showGridlines]="true" #dt *ngIf="!isLoading" [value]="rules" dataKey="linePriceRuleId" responsiveLayout="scroll" [rowHover]="true"
         [paginator]="rules.length > 10"
         [rows]="pageSizeService.get(TablePageSizeKeys.linePriceRules, [10,25,50])"
         [rowsPerPageOptions]="[10,25,50]" [showCurrentPageReport]="true"

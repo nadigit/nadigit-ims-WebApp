@@ -131,7 +131,7 @@
       <div class="flex align-items-center gap-2 ml-auto">
         <p-selectButton [options]="viewOptions" [(ngModel)]="tableViewMode" optionLabel="icon" optionValue="value"
           (onChange)="onTableViewModeChange.emit({ value: tableViewMode })">
-          <ng-template let-item pTemplate>
+          <ng-template let-item pTemplate="item">
             <i [class]="item.icon"></i>
           </ng-template>
         </p-selectButton>
@@ -199,7 +199,7 @@
 
   <!-- List View -->
   <ng-container *ngIf="tableViewMode === 'list'">
-    <p-table #dt [value]="(filteredProducts && filteredProducts.length > 0) ? filteredProducts : products" [rows]="pageSize"
+    <p-table [showGridlines]="true" #dt [value]="(filteredProducts && filteredProducts.length > 0) ? filteredProducts : products" [rows]="pageSize"
       [paginator]="true" [lazy]="true" (onLazyLoad)="onLazyLoad($event)" [totalRecords]="totalRecords"
       [loading]="false"
       [style.visibility]="isLoading ? 'hidden' : 'visible'"
@@ -207,7 +207,7 @@
       currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
       [(selection)]="selectedProducts" selectionMode="multiple" [rowHover]="true"
       [globalFilterFields]="['name','reference','category.categoryName','supplier.name','warehouse.name','inventoryStatus']"
-      [expandedRowKeys]="expandedProducts" styleClass="p-datatable-gridlines">
+      [expandedRowKeys]="expandedProducts">
 
       <!-- HEADER -->
       <ng-template pTemplate="header">

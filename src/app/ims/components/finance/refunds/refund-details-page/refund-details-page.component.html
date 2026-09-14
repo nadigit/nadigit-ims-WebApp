@@ -442,8 +442,8 @@
                             <span>{{ 'returned_items' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="refund.orderReturn.returnItems" [scrollable]="true"
-                                scrollHeight="400px" styleClass="refund-items-table">
+                            <p-table class="refund-items-table" [value]="refund.orderReturn.returnItems" [scrollable]="true"
+                                scrollHeight="400px">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th style="width: 40%">{{ 'product' | translate }}</th>

@@ -125,13 +125,12 @@
     </div>
   </div>
 
-  <p-table #dt [value]="rules" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.taxRules, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
+  <p-table [showGridlines]="true" #dt [value]="rules" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.taxRules, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
     (onPage)="pageSizeService.onPage(TablePageSizeKeys.taxRules, [20, 50, 100], $event)"
     [(selection)]="selectedRules" selectionMode="multiple" dataKey="taxRuleId" [rowHover]="true"
     [globalFilterFields]="['code','label','documentType','country']"
     [showCurrentPageReport]="true"
-    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-    styleClass="p-datatable-gridlines">
+    currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})">
     <ng-template pTemplate="header">
       <tr>
         <th *ngIf="isAdmin" style="width: 3rem">

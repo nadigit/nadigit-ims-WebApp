@@ -174,13 +174,13 @@
                             <p-badge *ngIf="totalRecords > 0" [value]="totalRecords.toString()" styleClass="ml-2"></p-badge>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="transactions" [(selection)]="selectedTransactions"
+                            <p-table class="transactions-table" [value]="transactions" [(selection)]="selectedTransactions"
                                 [lazy]="true" (onLazyLoad)="loadTransactions($event)"
                                 [paginator]="true" [rows]="pageSize" [totalRecords]="totalRecords"
                                 [loading]="transactionsLoading"
                                 [rowsPerPageOptions]="[20, 50, 100]"
                                 dataKey="transactionId"
-                                [responsive]="true" styleClass="transactions-table">
+                                [responsive]="true">
                                 
                                 <ng-template pTemplate="header">
                                     <tr>

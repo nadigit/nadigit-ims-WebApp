@@ -128,7 +128,7 @@
 
 			<div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-			<p-table #dt [value]="returns" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
+			<p-table [showGridlines]="true" #dt [value]="returns" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll"
 				[rows]="pageSize"
 				[totalRecords]="totalRecords"
 				[paginator]="true"
@@ -138,8 +138,7 @@
 				[showCurrentPageReport]="true"
 				currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
 				[(selection)]="selectedReturns" selectionMode="multiple" [rowHover]="true" dataKey="returnId"
-				[expandedRowKeys]="expandedRows"
-				styleClass="p-datatable-gridlines">
+				[expandedRowKeys]="expandedRows">
 
 				<ng-template pTemplate="header">
 					<tr>
@@ -477,9 +476,8 @@
 										</div>
 
 										<div class="selected-products-card">
-											<p-table [value]="targetProducts" dataKey="productId"
-												[scrollable]="targetProducts.length > 4" scrollHeight="320px"
-												styleClass="p-datatable-sm selected-products-table">
+											<p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+												[scrollable]="targetProducts.length > 4" scrollHeight="320px">
 												<ng-template pTemplate="header">
 													<tr>
 														<th class="col-product">{{ 'product_name' | translate }}</th>

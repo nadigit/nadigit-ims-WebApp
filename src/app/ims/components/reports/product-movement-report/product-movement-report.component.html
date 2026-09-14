@@ -143,7 +143,7 @@
         </span>
       </div>
 
-      <p-table
+      <p-table [size]="'small'"
         #movementTable
         *ngIf="rows.length > 0 && !loading"
         [value]="rows"
@@ -151,8 +151,7 @@
         [paginator]="true"
         [rowsPerPageOptions]="[10, 25, 50]"
         [globalFilterFields]="['productReference', 'productName', 'movementBand', 'recommendedAction']"
-        responsiveLayout="scroll"
-        styleClass="p-datatable-sm">
+        responsiveLayout="scroll">
         <ng-template pTemplate="header">
           <tr>
             <th>{{ 'reference' | translate }}</th>

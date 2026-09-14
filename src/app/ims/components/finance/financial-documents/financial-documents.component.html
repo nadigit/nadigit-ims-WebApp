@@ -87,7 +87,7 @@
 				</div>
 			</div>
 
-			<p-table
+			<p-table [showGridlines]="true"
 				[hidden]="(isLoading || isInitialLoad) && !financialDocs.length"
 				#dt [value]="financialDocs" [columns]="cols" responsiveLayout="scroll"
 				[lazy]="true"
@@ -101,7 +101,7 @@
 				[sortField]="tableSortField"
 				[sortOrder]="tableSortOrder"
 				[(selection)]="selectedFinancialDocs" selectionMode="multiple" [rowHover]="true"
-				dataKey="financialDocId" styleClass="p-datatable-gridlines">
+				dataKey="financialDocId">
 				<ng-template pTemplate="header">
 					<tr>
 						<th style="width: 3rem">

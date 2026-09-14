@@ -194,7 +194,7 @@
 
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-            <p-table #dt [value]="refunds" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" 
+            <p-table [showGridlines]="true" #dt [value]="refunds" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" 
                 [lazy]="true"
                 (onLazyLoad)="onLazyLoad($event)"
                 [loading]="isLoading"
@@ -202,8 +202,7 @@
                 [rows]="pageSize"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedRefunds" selectionMode="multiple" [rowHover]="true" dataKey="refundId"
-                styleClass="p-datatable-gridlines">
+                [(selection)]="selectedRefunds" selectionMode="multiple" [rowHover]="true" dataKey="refundId">
 
                 <ng-template pTemplate="header">
                     <tr>

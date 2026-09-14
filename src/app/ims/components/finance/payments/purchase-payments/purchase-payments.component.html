@@ -576,8 +576,7 @@
         <span>{{ 'payment_attachments_empty' | translate }}</span>
     </div>
 
-    <p-table [value]="attachments" *ngIf="!attachmentsLoading && attachments.length > 0"
-        styleClass="p-datatable-sm p-datatable-gridlines" responsiveLayout="scroll">
+    <p-table [size]="'small'" [showGridlines]="true" [value]="attachments" *ngIf="!attachmentsLoading && attachments.length > 0" responsiveLayout="scroll">
         <ng-template pTemplate="header">
             <tr>
                 <th>{{ 'payment_attachment_file' | translate }}</th>

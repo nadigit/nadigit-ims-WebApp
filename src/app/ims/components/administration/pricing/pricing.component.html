@@ -41,8 +41,7 @@
               class="p-button-success" (click)="openNewPriceList()"></button>
           </div>
 
-          <p-table *ngIf="!isLoading && priceLists.length > 0" [value]="priceLists" dataKey="id"
-            styleClass="p-datatable-gridlines" [sortMode]="'single'" [sortField]="'priority'" [sortOrder]="-1"
+          <p-table [showGridlines]="true" *ngIf="!isLoading && priceLists.length > 0" [value]="priceLists" dataKey="id" [sortMode]="'single'" [sortField]="'priority'" [sortOrder]="-1"
             [paginator]="priceLists.length > 12" [rows]="12" [showCurrentPageReport]="true"
             [rowHover]="true">
             <ng-template pTemplate="header">
@@ -129,7 +128,7 @@
               </div>
             </div>
 
-            <p-table *ngIf="!isLoadingItems || priceListItems.length" [value]="priceListItems" dataKey="id" styleClass="p-datatable-gridlines"
+            <p-table [showGridlines]="true" *ngIf="!isLoadingItems || priceListItems.length" [value]="priceListItems" dataKey="id"
               [loading]="isLoadingItems" [sortMode]="'single'" [sortField]="'minQty'" [sortOrder]="1"
               [paginator]="priceListItems.length > 15" [rows]="15" [showCurrentPageReport]="true"
               [rowHover]="true">

@@ -406,9 +406,8 @@
                             <span>{{ 'purchased_products' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="purchase.purchaseItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseDetailsPayments, [10,25,50])" [paginator]="true"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="purchase.purchaseItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseDetailsPayments, [10,25,50])" [paginator]="true"
                                 [showCurrentPageReport]="true"
-                                styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.purchaseDetailsPayments, [10,25,50], $event)"
@@ -553,10 +552,9 @@
                                 </button>
                             </div>
 
-                            <p-table [value]="purchaseAttachments" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseDetailsAttachments, [10,25,50])" [paginator]="true"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="purchaseAttachments" [rows]="pageSizeService.get(TablePageSizeKeys.purchaseDetailsAttachments, [10,25,50])" [paginator]="true"
                                 [rowsPerPageOptions]="[10,25,50]"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.purchaseDetailsAttachments, [10,25,50], $event)"
-                                styleClass="p-datatable-sm p-datatable-striped"
                                 *ngIf="purchaseAttachments.length > 0; else noPurchaseAttachments">
                                 <ng-template pTemplate="header">
                                     <tr>

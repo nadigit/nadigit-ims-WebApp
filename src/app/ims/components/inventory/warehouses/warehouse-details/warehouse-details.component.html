@@ -348,8 +348,8 @@
                         </div>
                         
                         <div class="card-body p-0">
-                            <p-table [value]="filteredWarehouseProducts" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.warehouseDetailsProducts, [15,30,50])"
-                                [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="filteredWarehouseProducts" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.warehouseDetailsProducts, [15,30,50])"
+                                [showCurrentPageReport]="true"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="loadingWarehouseDetails"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.warehouseDetailsProducts, [15,30,50], $event)"
@@ -493,11 +493,10 @@
                                 </div>
                             </div>
                             <div class="card-body p-0">
-                                <p-table [value]="writeOffs" [paginator]="writeOffs.length > 10" 
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="writeOffs" [paginator]="writeOffs.length > 10" 
                                     [rows]="10" [showCurrentPageReport]="true" 
                                     currentPageReportTemplate="{first} - {last} of {totalRecords} {{ 'write_offs' | translate }}"
-                                    sortMode="multiple" responsiveLayout="scroll"
-                                    styleClass="p-datatable-sm p-datatable-striped">
+                                    sortMode="multiple" responsiveLayout="scroll">
                                     
                                     <ng-template pTemplate="header">
                                         <tr>

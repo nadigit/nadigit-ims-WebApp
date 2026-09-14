@@ -415,7 +415,7 @@
             </div>
           </div>
 
-          <p-table
+          <p-table [size]="'small'"
             *ngIf="situation && (!situationInitialLoad || situation) && (!situationLoading || situation)"
             [value]="situation.lines"
             [lazy]="true"
@@ -427,8 +427,7 @@
             (onLazyLoad)="onSituationPage($event)"
             [rowsPerPageOptions]="[25, 50, 100]"
             [loading]="situationLoading && (situation.lines?.length ?? 0) > 0"
-            responsiveLayout="scroll"
-            styleClass="p-datatable-sm">
+            responsiveLayout="scroll">
             <ng-template pTemplate="header">
               <tr>
                 <th>{{ 'reference' | translate }}</th>
@@ -566,14 +565,14 @@
             </div>
           </div>
 
-          <p-table
+          <p-table [size]="'small'"
             *ngIf="delta && (!deltaInitialLoad || delta) && (!deltaLoading || delta)"
             [value]="delta.lines" [lazy]="true" [lazyLoadOnInit]="false"
             [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.inventorySnapshotDelta, [25, 50, 100])" [totalRecords]="delta.totalElements"
             [first]="deltaPage * deltaSize" (onLazyLoad)="onDeltaPage($event)"
             [rowsPerPageOptions]="[25, 50, 100]"
             [loading]="deltaLoading && (delta.lines?.length ?? 0) > 0"
-            responsiveLayout="scroll" styleClass="p-datatable-sm">
+            responsiveLayout="scroll">
             <ng-template pTemplate="header">
               <tr>
                 <th>{{ 'reference' | translate }}</th>

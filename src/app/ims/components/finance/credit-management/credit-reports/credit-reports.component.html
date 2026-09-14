@@ -45,12 +45,11 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <p-table [value]="outstandingCreditAccounts" 
+                        <p-table [stripedRows]="true" [showGridlines]="true" [value]="outstandingCreditAccounts" 
                                  [paginator]="true"
                                  [rows]="pageSizeService.get(TablePageSizeKeys.creditReportsOutstanding, creditReportPageOptions)"
                                  [rowsPerPageOptions]="creditReportPageOptions"
-                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.creditReportsOutstanding, creditReportPageOptions, $event)"
-                                 styleClass="p-datatable-striped p-datatable-gridlines">
+                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.creditReportsOutstanding, creditReportPageOptions, $event)">
                             <ng-template pTemplate="header">
                                 <tr>
                                     <th pSortableColumn="customer">
@@ -133,12 +132,11 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <p-table [value]="overLimitAccounts" 
+                        <p-table [stripedRows]="true" [showGridlines]="true" [value]="overLimitAccounts" 
                                  [paginator]="true"
                                  [rows]="pageSizeService.get(TablePageSizeKeys.creditReportsOverLimit, creditReportPageOptions)"
                                  [rowsPerPageOptions]="creditReportPageOptions"
-                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.creditReportsOverLimit, creditReportPageOptions, $event)"
-                                 styleClass="p-datatable-striped p-datatable-gridlines">
+                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.creditReportsOverLimit, creditReportPageOptions, $event)">
                             <ng-template pTemplate="header">
                                 <tr>
                                     <th>{{ 'customer' | translate }}</th>
@@ -324,12 +322,12 @@
 
                             <!-- Detailed Table -->
                             <div class="aging-table">
-                                <p-table [value]="[
+                                <p-table [stripedRows]="true" [showGridlines]="true" [value]="[
                                     { age: '0-30', label: 'aging_0_30_days', amount: outstandingAgingInfo.outstandingAging['0-30'], percentage: getOutstandingAgingPercentage('0-30') },
                                     { age: '31-60', label: 'aging_31_60_days', amount: outstandingAgingInfo.outstandingAging['31-60'], percentage: getOutstandingAgingPercentage('31-60') },
                                     { age: '61-90', label: 'aging_61_90_days', amount: outstandingAgingInfo.outstandingAging['61-90'], percentage: getOutstandingAgingPercentage('61-90') },
                                     { age: '90+', label: 'aging_90_plus_days', amount: outstandingAgingInfo.outstandingAging['90+'], percentage: getOutstandingAgingPercentage('90+') }
-                                ]" styleClass="p-datatable-striped p-datatable-gridlines">
+                                ]">
                                     <ng-template pTemplate="header">
                                         <tr>
                                             <th>{{ 'age' | translate }}</th>

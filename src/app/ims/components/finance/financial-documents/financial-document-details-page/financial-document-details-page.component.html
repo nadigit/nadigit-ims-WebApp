@@ -411,12 +411,12 @@
 							<span>{{ 'ordered_products' | translate }}</span>
 						</div>
 						<div class="card-body p-0">
-							<p-table #dt1 [value]="financialDoc.order.orderItems || []" responsiveLayout="scroll" [rows]="pageSizeService.get(TablePageSizeKeys.financialDocumentDetailsLines, [10,20,50,100])"
+							<p-table [size]="'small'" [stripedRows]="true" #dt1 [value]="financialDoc.order.orderItems || []" responsiveLayout="scroll" [rows]="pageSizeService.get(TablePageSizeKeys.financialDocumentDetailsLines, [10,20,50,100])"
 								[globalFilterFields]="['product.name','product.reference','quantity','pricePerUnit']"
 								[paginator]="true" [rowsPerPageOptions]="[10,20,50,100]" [showCurrentPageReport]="true"
 								(onPage)="pageSizeService.onPage(TablePageSizeKeys.financialDocumentDetailsLines, [10,20,50,100], $event)"
 								currentPageReportTemplate="{first} - {last} / {totalRecords} {{'table_records' | translate}}"
-								[rowHover]="true" dataKey="id" styleClass="p-datatable-sm p-datatable-striped"
+								[rowHover]="true" dataKey="id"
 								*ngIf="financialDoc.order.orderItems?.length > 0; else noItems">
 
 								<ng-template pTemplate="caption">

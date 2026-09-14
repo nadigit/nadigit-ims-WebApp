@@ -57,13 +57,12 @@
 
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-            <p-table #dt [value]="categories" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
+            <p-table [showGridlines]="true" #dt [value]="categories" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
                 [globalFilterFields]="['categoryName','description']" [paginator]="true"
                 [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 (onPage)="onTablePage($event)"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
-                [(selection)]="selectedCategories" selectionMode="multiple" [rowHover]="true" dataKey="categoryId"
-                styleClass="p-datatable-gridlines">
+                [(selection)]="selectedCategories" selectionMode="multiple" [rowHover]="true" dataKey="categoryId">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">

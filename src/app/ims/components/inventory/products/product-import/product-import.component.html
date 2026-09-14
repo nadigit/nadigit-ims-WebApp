@@ -311,7 +311,7 @@
             icon="pi pi-download" class="p-button-outlined p-button-sm" (click)="downloadErrorReport()">
           </button>
         </div>
-        <p-table [value]="validationResult.errors" [paginator]="true" [rows]="10" styleClass="p-datatable-gridlines">
+        <p-table [showGridlines]="true" [value]="validationResult.errors" [paginator]="true" [rows]="10">
           <ng-template pTemplate="header">
             <tr>
               <th>{{ 'row_number' | translate }}</th>
@@ -366,8 +366,7 @@
           </div>
         </div>
 
-        <p-table [value]="preview.previewData" [paginator]="true" [rows]="10"
-          styleClass="p-datatable-gridlines mt-3">
+        <p-table [showGridlines]="true" class="mt-3" [value]="preview.previewData" [paginator]="true" [rows]="10">
           <ng-template pTemplate="header">
             <tr>
               <th>{{ 'row_number' | translate }}</th>
@@ -446,7 +445,7 @@
             icon="pi pi-download" class="p-button-outlined p-button-sm" (click)="downloadErrorReport()">
           </button>
         </div>
-        <p-table [value]="importResult.errors" [paginator]="true" [rows]="10" styleClass="p-datatable-gridlines">
+        <p-table [showGridlines]="true" [value]="importResult.errors" [paginator]="true" [rows]="10">
           <ng-template pTemplate="header">
             <tr>
               <th>{{ 'row_number' | translate }}</th>

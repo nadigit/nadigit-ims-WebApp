@@ -187,7 +187,7 @@
   </div>
 </div>
 
-<p-table
+<p-table [showGridlines]="true" class="compact-orders-table"
   [hidden]="(isLoading || isInitialLoad) && !orders.length"
   #dt [value]="orders" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize" [paginator]="true"
   [sortField]="'orderDate'" [sortOrder]="-1"
@@ -196,8 +196,7 @@
   currentPageReportTemplate="{first} / {last} ({{totalRecords}} {{'table_records' | translate}})"
   [(selection)]="selectedOrders" selectionMode="multiple" [rowHover]="true" dataKey="orderId"
   [expandedRowKeys]="expandedRows" [filterDelay]="0"
-  [globalFilterFields]="['reference','customer.firstName','customer.lastName','customer.companyName','shop.shopName','orderStatus','paymentStatus', 'orderDate']"
-  styleClass="p-datatable-gridlines compact-orders-table">
+  [globalFilterFields]="['reference','customer.firstName','customer.lastName','customer.companyName','shop.shopName','orderStatus','paymentStatus', 'orderDate']">
   <ng-template pTemplate="header">
     <tr>
       <th style="width: 3rem">

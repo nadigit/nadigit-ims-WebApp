@@ -133,9 +133,8 @@
           </div>
         </div>
 
-        <p-table [value]="report.lines" [paginator]="report.lines.length > 15" [rows]="15"
-          [loading]="loading && report.lines.length > 0"
-          styleClass="p-datatable-sm" responsiveLayout="scroll">
+        <p-table [size]="'small'" [value]="report.lines" [paginator]="report.lines.length > 15" [rows]="15"
+          [loading]="loading && report.lines.length > 0" responsiveLayout="scroll">
           <ng-template pTemplate="header">
             <tr>
               <th>#</th>

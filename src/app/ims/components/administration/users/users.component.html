@@ -70,7 +70,7 @@
                 </div>
             </div>
 
-            <p-table #dt
+            <p-table [showGridlines]="true" #dt
                 *ngIf="activeItem?.icon == 'pi pi-fw pi-user' && ((!isInitialLoad || users.length) && (!isLoading || users.length))"
                 [value]="users"
                 [columns]="usersCols" responsiveLayout="scroll" [rows]="pageSize"
@@ -79,8 +79,7 @@
                 (onPage)="onTablePage($event)"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedUsers" selectionMode="multiple" [rowHover]="true" dataKey="id"
-                [loading]="isLoading && users.length > 0"
-                styleClass="p-datatable-gridlines">
+                [loading]="isLoading && users.length > 0">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">
@@ -171,7 +170,7 @@
                 </div>
             </div>
 
-            <p-table #dtRoles
+            <p-table [showGridlines]="true" #dtRoles
                 *ngIf="activeItem?.icon == 'pi pi-fw pi-shield' && ((!rolesInitialLoad || appRoles.length) && (!rolesLoading || appRoles.length))"
                 [value]="appRoles" [columns]="rolesCols"
                 responsiveLayout="scroll" [rows]="pageSize" [globalFilterFields]="['name','description']" [paginator]="true"
@@ -179,8 +178,7 @@
                 (onPage)="onTablePage($event)"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedRoles" selectionMode="multiple" [rowHover]="true" dataKey="id"
-                [loading]="rolesLoading && appRoles.length > 0"
-                styleClass="p-datatable-gridlines">
+                [loading]="rolesLoading && appRoles.length > 0">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 3rem">
