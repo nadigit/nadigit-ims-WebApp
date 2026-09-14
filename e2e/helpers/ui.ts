@@ -76,6 +76,14 @@ export function iconButton(scope: Page | Locator, icon: string): Locator {
  * the current sort puts it, which on a seeded database is rarely page one.
  */
 export async function search(page: Page, term: string): Promise<void> {
+    // Wait for the list to finish loading before typing. These pages render the table only once
+    // the first fetch resolves (*ngIf="!isLoading", with a spinner in its place until then), and a
+    // term typed before that sets the input but filters nothing: the table that would have
+    // listened did not exist yet, and nothing re-applies the term when the rows finally arrive.
+    // networkidle is not enough on its own — it can fall between the request completing and
+    // Angular rendering the result.
+    await expect(page.locator('.ims-loading-panel')).toHaveCount(0, { timeout: 30_000 });
+
     const box = page.getByPlaceholder('Search...').first();
     await box.fill(term);
     // The table filters on input with no debounce of its own, but the rows still have to redraw.
