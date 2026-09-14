@@ -181,12 +181,11 @@
 
             <div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-            <p-table #dt [value]="credits" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
+            <p-table [showGridlines]="true" #dt [value]="credits" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
                 [globalFilterFields]="['purchaseReturn.purchase.reference','amount','status','creditMethod','transactionId','notes']"
                 [paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
                 currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
                 [(selection)]="selectedCredits" selectionMode="multiple" [rowHover]="true" dataKey="creditId"
-                styleClass="p-datatable-gridlines"
                 [lazy]="true"
                 (onLazyLoad)="onLazyLoad($event)"
                 [loading]="isLoading"
@@ -495,7 +494,7 @@
 
                                 <div class="field col-12 mb-0">
                                     <label for="notes" class="ims-form-label">{{ 'credit_notes' | translate }}</label>
-                                    <textarea id="notes" rows="3" pInputTextarea class="w-full" [(ngModel)]="credit.notes"
+                                    <textarea id="notes" rows="3" pTextarea class="w-full" [(ngModel)]="credit.notes"
                                         name="notes" placeholder="{{ 'credit_notes' | translate }}"></textarea>
                                 </div>
                             </div>

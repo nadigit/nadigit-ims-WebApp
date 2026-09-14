@@ -856,12 +856,12 @@
 					</div>
 
 					<!-- Banks Table -->
-					<p-table #dtBanks [value]="banks" [(selection)]="selectedBanks"
+					<p-table [showGridlines]="true" #dtBanks [value]="banks" [(selection)]="selectedBanks"
 						[paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.settings, [20, 50, 100])" [rowsPerPageOptions]="[20, 50, 100]"
 						(onPage)="pageSizeService.onPage(TablePageSizeKeys.settings, [20, 50, 100], $event)"
 						[globalFilterFields]="['name','code','country','city']"
 						[loading]="isLoadingBanks" dataKey="bankId"
-						[responsive]="true" styleClass="p-datatable-gridlines">
+						[responsive]="true">
 
 								<ng-template pTemplate="header">
 									<tr>
@@ -1029,7 +1029,7 @@
             </div>
             <div class="field">
               <label for="address" class="ims-form-label">{{'address' | translate}}</label>
-              <textarea id="address" rows="3" pInputTextarea [autoResize]="true" [(ngModel)]="bank.address"
+              <textarea id="address" rows="3" pTextarea [autoResize]="true" [(ngModel)]="bank.address"
                 placeholder="{{ 'enter_address' | translate }}"></textarea>
             </div>
           </div>
@@ -1075,7 +1075,7 @@
           <div class="ims-form-section__body ims-form-section__body--stack">
             <div class="field">
               <label for="notes" class="ims-form-label">{{'notes' | translate}}</label>
-              <textarea id="notes" rows="3" pInputTextarea [autoResize]="true" [(ngModel)]="bank.notes"
+              <textarea id="notes" rows="3" pTextarea [autoResize]="true" [(ngModel)]="bank.notes"
                 placeholder="{{ 'enter_additional_notes' | translate }}"></textarea>
             </div>
             <div class="ims-form-checkbox-row">

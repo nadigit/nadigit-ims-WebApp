@@ -88,12 +88,11 @@
                 </div>
             </div>
 
-            <p-table *ngIf="!isLoading || rows.length" #dt [value]="filteredRows"
+            <p-table [showGridlines]="true" *ngIf="!isLoading || rows.length" #dt [value]="filteredRows"
                 [paginator]="true" [rows]="pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
                 (onPage)="onTablePage($event)"
                 [globalFilterFields]="['shop.shopName','shop.city','shop.country','openedBy']"
-                [loading]="isLoading && rows.length > 0" dataKey="shop.shopId"
-                styleClass="p-datatable-gridlines" responsiveLayout="scroll">
+                [loading]="isLoading && rows.length > 0" dataKey="shop.shopId" responsiveLayout="scroll">
 
                 <ng-template pTemplate="header">
                     <tr>

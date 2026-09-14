@@ -359,9 +359,8 @@
                             <span>{{ 'returned_items' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="return.returnItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.returnDetailsItems, [10,25,50])" [paginator]="true"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="return.returnItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.returnDetailsItems, [10,25,50])" [paginator]="true"
                                 [showCurrentPageReport]="true"
-                                styleClass="p-datatable-sm p-datatable-striped"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,25,50]"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.returnDetailsItems, [10,25,50], $event)"

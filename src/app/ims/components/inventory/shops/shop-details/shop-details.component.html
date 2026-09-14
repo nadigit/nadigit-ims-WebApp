@@ -376,9 +376,8 @@
                         </div>
                         <div class="card-body p-0">
                             <div *ngIf="!loadingPurchases; else purchasesLoading">
-                                <p-table [value]="recentPurchases || []" [rows]="pageSizeService.get(TablePageSizeKeys.shopDetailsProducts, [10,25,50])" [paginator]="true"
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="recentPurchases || []" [rows]="pageSizeService.get(TablePageSizeKeys.shopDetailsProducts, [10,25,50])" [paginator]="true"
                                     [showCurrentPageReport]="true"
-                                    styleClass="p-datatable-sm p-datatable-striped"
                                     currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                     [rowsPerPageOptions]="[10,25,50]"
                                     (onPage)="pageSizeService.onPage(TablePageSizeKeys.shopDetailsProducts, [10,25,50], $event)">
@@ -452,9 +451,8 @@
                         </div>
                         <div class="card-body p-0">
                             <div *ngIf="!loadingExpenses; else expensesLoading">
-                                <p-table [value]="recentExpenses || []" [rows]="pageSizeService.get(TablePageSizeKeys.shopDetailsRecentExpenses, [10,25,50])" [paginator]="true"
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="recentExpenses || []" [rows]="pageSizeService.get(TablePageSizeKeys.shopDetailsRecentExpenses, [10,25,50])" [paginator]="true"
                                     [showCurrentPageReport]="true"
-                                    styleClass="p-datatable-sm p-datatable-striped"
                                     currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                     [rowsPerPageOptions]="[10,25,50]"
                                     (onPage)="pageSizeService.onPage(TablePageSizeKeys.shopDetailsRecentExpenses, [10,25,50], $event)">
@@ -538,7 +536,7 @@
                                 <p-progressSpinner styleClass="ims-spinner--base" ariaLabel="loading"></p-progressSpinner>
                             </div>
                             <ng-container *ngIf="!posSessionsLoading">
-                                <p-table [value]="posSessions" styleClass="p-datatable-sm p-datatable-striped" responsiveLayout="scroll">
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="posSessions" responsiveLayout="scroll">
                                     <ng-template pTemplate="header">
                                         <tr>
                                             <th>{{ 'pos_session_id' | translate }}</th>

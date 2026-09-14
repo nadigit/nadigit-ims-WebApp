@@ -27,13 +27,13 @@
             </div>
 
             <!-- Unreconciled Transactions Table -->
-            <p-table [value]="unreconciledTransactions" [(selection)]="selectedTransactions"
+            <p-table [showGridlines]="true" [value]="unreconciledTransactions" [(selection)]="selectedTransactions"
                 [paginator]="true"
                 [rows]="pageSizeService.get(TablePageSizeKeys.bankingReconciliation, reconciliationPageOptions)"
                 [rowsPerPageOptions]="reconciliationPageOptions"
                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.bankingReconciliation, reconciliationPageOptions, $event)"
                 dataKey="transactionId"
-                [responsive]="true" styleClass="p-datatable-gridlines">
+                [responsive]="true">
                 
                 <ng-template pTemplate="header">
                     <tr>

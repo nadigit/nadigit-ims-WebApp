@@ -9,7 +9,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { PasswordModule } from 'primeng/password';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { AutoCompleteModule } from 'primeng/autocomplete';
@@ -49,7 +49,7 @@ import { InventorySharedModule } from '../inventory/shared/inventory-shared.modu
     DialogModule,
     DropdownModule,
     InputNumberModule,
-    InputTextareaModule,
+    TextareaModule,
     PasswordModule,
     InputSwitchModule,
     AutoCompleteModule,

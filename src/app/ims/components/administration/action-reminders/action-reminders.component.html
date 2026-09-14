@@ -9,7 +9,7 @@
     <div class="view-toggle" *ngIf="!loading && items.length > 0">
       <p-selectButton [options]="viewOptions" [(ngModel)]="viewMode" optionLabel="icon" optionValue="value"
         (onChange)="onViewModeChange()" [allowEmpty]="false">
-        <ng-template let-item pTemplate>
+        <ng-template let-item pTemplate="item">
           <i [class]="item.icon"></i>
         </ng-template>
       </p-selectButton>

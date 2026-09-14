@@ -11,7 +11,7 @@ import { ToastModule } from 'primeng/toast';
 import { ToolbarModule } from 'primeng/toolbar';
 import { RatingModule } from 'primeng/rating';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { RadioButtonModule } from 'primeng/radiobutton';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -28,7 +28,7 @@ import { ImageModule } from 'primeng/image';
 import { ZXingScannerModule } from '@zxing/ngx-scanner';
 import { TreeSelectModule } from 'primeng/treeselect';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
-import { DialogService, DynamicDialogModule } from 'primeng/dynamicdialog';
+import { DialogService } from 'primeng/dynamicdialog';
 import { TagModule } from 'primeng/tag';
 import { ProgressBarModule } from 'primeng/progressbar';
 import { ChartModule } from 'primeng/chart';
@@ -69,12 +69,11 @@ import { SupplierFormDialogModule } from '../../purchases/suppliers/supplier-for
         ToolbarModule,
         RatingModule,
         InputTextModule,
-        InputTextareaModule,
+        TextareaModule,
         DropdownModule,
         RadioButtonModule,
         InputNumberModule,
         DialogModule,
-        DynamicDialogModule,
         MenuModule,
         ContextMenuModule,
         MenubarModule,

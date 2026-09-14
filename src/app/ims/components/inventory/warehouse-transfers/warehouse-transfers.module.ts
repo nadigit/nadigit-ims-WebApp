@@ -11,7 +11,7 @@ import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { ToolbarModule } from 'primeng/toolbar';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { InputNumberModule } from 'primeng/inputnumber';
@@ -42,7 +42,7 @@ import { ReportingService } from 'src/app/utils/reporting.service';
         ToastModule,
         ToolbarModule,
         InputTextModule,
-        InputTextareaModule,
+        TextareaModule,
         DropdownModule,
         AutoCompleteModule,
         InputNumberModule,

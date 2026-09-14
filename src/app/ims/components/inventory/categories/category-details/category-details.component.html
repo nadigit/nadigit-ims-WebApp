@@ -320,8 +320,8 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="filteredCategoryProducts" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.categoryDetailsProducts, [15,30,50])"
-                                [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="filteredCategoryProducts" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.categoryDetailsProducts, [15,30,50])"
+                                [showCurrentPageReport]="true"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="loadingCategoryDetails"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.categoryDetailsProducts, [15,30,50], $event)"

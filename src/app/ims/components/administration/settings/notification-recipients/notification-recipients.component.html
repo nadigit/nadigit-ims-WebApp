@@ -133,7 +133,7 @@
       <div class="card-body" *ngIf="showBulkInput">
         <label class="ims-form-label">{{ 'set_multiple_emails' | translate }}</label>
         <textarea
-          pInputTextarea
+          pTextarea
           [(ngModel)]="bulkRecipients"
           [placeholder]="'comma_separated_emails' | translate"
           [rows]="4"

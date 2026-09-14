@@ -70,7 +70,7 @@
                 <p-tag [value]="pastClosingAlerts.length.toString()" severity="danger" [rounded]="true"></p-tag>
             </div>
             <p class="text-600 mt-0 mb-3">{{ 'treasury_past_closing_alert_description' | translate }}</p>
-            <p-table [value]="pastClosingAlerts" styleClass="p-datatable-sm p-datatable-gridlines">
+            <p-table [size]="'small'" [showGridlines]="true" [value]="pastClosingAlerts">
                 <ng-template pTemplate="header">
                     <tr>
                         <th>{{ 'shop_name' | translate }}</th>
@@ -173,7 +173,7 @@
                 {{ 'treasury_unlinked_registers_warning' | translate:{ count: unlinkedRegistersCount } }}
             </app-page-note>
 
-            <p-table [value]="cashFlowRows" styleClass="p-datatable-sm p-datatable-gridlines"
+            <p-table [size]="'small'" [showGridlines]="true" [value]="cashFlowRows"
                 *ngIf="cashFlowRows.length; else noCashFlow">
                 <ng-template pTemplate="header">
                     <tr>
@@ -228,7 +228,7 @@
                             class="p-button-text p-button-sm" (click)="navigateToCashRegisters()"></button>
                     </div>
 
-                    <p-table [value]="openRegisters" styleClass="p-datatable-sm p-datatable-gridlines"
+                    <p-table [size]="'small'" [showGridlines]="true" [value]="openRegisters"
                         *ngIf="openRegisters.length; else noOpenRegisters">
                         <ng-template pTemplate="header">
                             <tr>
@@ -270,7 +270,7 @@
                         <h3 class="m-0">{{ 'treasury_recent_activity' | translate }}</h3>
                     </div>
 
-                    <p-table [value]="recentActivity" styleClass="p-datatable-sm p-datatable-gridlines"
+                    <p-table [size]="'small'" [showGridlines]="true" [value]="recentActivity"
                         *ngIf="recentActivity.length; else noActivity">
                         <ng-template pTemplate="header">
                             <tr>

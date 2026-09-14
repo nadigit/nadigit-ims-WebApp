@@ -143,12 +143,12 @@
 				</div>
 
 				<div class="import-section archived-products-table-section" *ngIf="!isLoadingArchived">
-					<p-table #archivedDt [value]="filteredArchivedProducts" [columns]="cols"
+					<p-table [showGridlines]="true" #archivedDt [value]="filteredArchivedProducts" [columns]="cols"
 						responsiveLayout="scroll"
 						[rows]="pageSizeService.get(TablePageSizeKeys.productsArchived, rowsPerPageOptions)"
 						[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 						(onPage)="pageSizeService.onPage(TablePageSizeKeys.productsArchived, rowsPerPageOptions, $event)"
-						dataKey="productId" styleClass="p-datatable-gridlines"
+						dataKey="productId"
 						currentPageReportTemplate="{first} / {last} ({totalRecords} {{ 'table_records' | translate }})"
 						[rowHover]="true">
 						<ng-template pTemplate="header">

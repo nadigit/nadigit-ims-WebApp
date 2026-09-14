@@ -9,7 +9,7 @@ import { ButtonModule } from 'primeng/button';
 import { RippleModule } from 'primeng/ripple';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { DialogModule } from 'primeng/dialog';
 import { TranslateModule } from '@ngx-translate/core';
@@ -34,7 +34,7 @@ import { CheckboxModule } from 'primeng/checkbox';
         RippleModule,
         ToastModule,
         InputTextModule,
-        InputTextareaModule,
+        TextareaModule,
         DropdownModule,
         DialogModule,
         TranslateModule,

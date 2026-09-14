@@ -8,7 +8,7 @@ import { ButtonModule } from 'primeng/button';
 import { ToastModule } from 'primeng/toast';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { DropdownModule } from 'primeng/dropdown';
 import { TabViewModule } from 'primeng/tabview';
@@ -32,7 +32,7 @@ import { TooltipModule } from 'primeng/tooltip';
     ToastModule,
     DialogModule,
     InputTextModule,
-    InputTextareaModule,
+    TextareaModule,
     InputNumberModule,
     DropdownModule,
     TabViewModule,

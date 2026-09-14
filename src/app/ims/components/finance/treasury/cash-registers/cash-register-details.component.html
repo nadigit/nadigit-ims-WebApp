@@ -277,11 +277,10 @@
               </span>
             </div>
 
-            <p-table *ngIf="filteredSessions?.length; else noSessions" [value]="filteredSessions"
+            <p-table [size]="'small'" [stripedRows]="true" *ngIf="filteredSessions?.length; else noSessions" [value]="filteredSessions"
               [rows]="pageSizeService.get(TablePageSizeKeys.treasuryCashRegisterSessions, [5,10,25,50])" [paginator]="true"
               responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
-              (onPage)="pageSizeService.onPage(TablePageSizeKeys.treasuryCashRegisterSessions, [5,10,25,50], $event)"
-              styleClass="p-datatable-sm p-datatable-striped">
+              (onPage)="pageSizeService.onPage(TablePageSizeKeys.treasuryCashRegisterSessions, [5,10,25,50], $event)">
               <ng-template pTemplate="header">
                 <tr>
                   <th>{{ 'cashier' | translate }}</th>
@@ -392,11 +391,10 @@
                 (click)="clearMovementFilters()" [pTooltip]="'clear_filters' | translate"></button>
             </div>
 
-            <p-table [value]="filteredMovements"
+            <p-table [size]="'small'" [stripedRows]="true" [value]="filteredMovements"
               [rows]="pageSizeService.get(TablePageSizeKeys.treasuryCashRegisterMovements, [5,10,25,50])" [paginator]="true"
               responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
-              (onPage)="pageSizeService.onPage(TablePageSizeKeys.treasuryCashRegisterMovements, [5,10,25,50], $event)"
-              styleClass="p-datatable-sm p-datatable-striped">
+              (onPage)="pageSizeService.onPage(TablePageSizeKeys.treasuryCashRegisterMovements, [5,10,25,50], $event)">
               <ng-template pTemplate="header">
                 <tr>
                   <th>{{ 'type' | translate }}</th>
@@ -498,11 +496,10 @@
                 (click)="clearCollectionFilters()" [pTooltip]="'clear_filters' | translate"></button>
             </div>
 
-            <p-table [value]="filteredCollections"
+            <p-table [size]="'small'" [stripedRows]="true" [value]="filteredCollections"
               [rows]="pageSizeService.get(TablePageSizeKeys.treasuryCashRegisterCollections, [5,10,25,50])" [paginator]="true"
               responsiveLayout="scroll" [rowsPerPageOptions]="[5,10,25,50]"
-              (onPage)="pageSizeService.onPage(TablePageSizeKeys.treasuryCashRegisterCollections, [5,10,25,50], $event)"
-              styleClass="p-datatable-sm p-datatable-striped">
+              (onPage)="pageSizeService.onPage(TablePageSizeKeys.treasuryCashRegisterCollections, [5,10,25,50], $event)">
               <ng-template pTemplate="header">
                 <tr>
                   <th>{{ 'receipt_number' | translate }}</th>
@@ -621,7 +618,7 @@
             </div>
             <div class="field col-12">
               <label for="collectionNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
-              <textarea pInputTextarea id="collectionNotes" [(ngModel)]="newCollection.notes" rows="2" [autoResize]="true"></textarea>
+              <textarea pTextarea id="collectionNotes" [(ngModel)]="newCollection.notes" rows="2" [autoResize]="true"></textarea>
             </div>
           </div>
         </section>
@@ -642,8 +639,7 @@
 <!-- Session Movements Dialog -->
 <p-dialog [(visible)]="movementsDialogVisible" [header]="'session_movements' | translate" [modal]="true"
   [style]="{width: '70vw', maxWidth: '1000px'}" [closable]="true">
-  <p-table [value]="selectedSessionMovements" responsiveLayout="scroll"
-    styleClass="p-datatable-striped p-datatable-gridlines">
+  <p-table [stripedRows]="true" [showGridlines]="true" [value]="selectedSessionMovements" responsiveLayout="scroll">
     <ng-template pTemplate="header">
       <tr>
         <th>{{ 'type' | translate }}</th>
@@ -705,7 +701,7 @@
             </div>
             <div class="field col-12">
               <label for="depositNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
-              <textarea pInputTextarea id="depositNotes" [(ngModel)]="newDeposit.notes" rows="2" [autoResize]="true"></textarea>
+              <textarea pTextarea id="depositNotes" [(ngModel)]="newDeposit.notes" rows="2" [autoResize]="true"></textarea>
             </div>
           </div>
         </section>
@@ -753,7 +749,7 @@
             </div>
             <div class="field col-12">
               <label for="withdrawNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
-              <textarea pInputTextarea id="withdrawNotes" [(ngModel)]="newWithdraw.notes" rows="2" [autoResize]="true"></textarea>
+              <textarea pTextarea id="withdrawNotes" [(ngModel)]="newWithdraw.notes" rows="2" [autoResize]="true"></textarea>
             </div>
           </div>
         </section>
@@ -832,7 +828,7 @@
             </div>
             <div class="field col-12">
               <label for="transferNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
-              <textarea pInputTextarea id="transferNotes" [(ngModel)]="transferNotes" rows="2" [autoResize]="true"></textarea>
+              <textarea pTextarea id="transferNotes" [(ngModel)]="transferNotes" rows="2" [autoResize]="true"></textarea>
             </div>
           </div>
         </section>

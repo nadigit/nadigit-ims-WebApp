@@ -380,9 +380,8 @@
 										</div>
 
 										<div class="selected-products-card">
-											<p-table [value]="targetProducts" dataKey="productId"
-												[scrollable]="targetProducts.length > 4" scrollHeight="280px"
-												styleClass="p-datatable-sm selected-products-table">
+											<p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+												[scrollable]="targetProducts.length > 4" scrollHeight="280px">
 												<ng-template pTemplate="header">
 													<tr>
 														<th class="col-product">{{ 'product' | translate }}</th>
@@ -874,7 +873,7 @@
 
 								<div class="field">
 									<label for="paymentNotes">{{ 'payment_notes' | translate }}</label>
-									<textarea pInputTextarea [(ngModel)]="payment.notes" rows="2"
+									<textarea pTextarea [(ngModel)]="payment.notes" rows="2"
 										id="paymentNotes"></textarea>
 								</div>
 
@@ -1164,7 +1163,7 @@
 									<span class="p-inputgroup-addon">
 										<i class="pi pi-home"></i>
 									</span>
-									<textarea pInputTextarea [(ngModel)]="customer.address" rows="3" [autoResize]="true"
+									<textarea pTextarea [(ngModel)]="customer.address" rows="3" [autoResize]="true"
 										placeholder="{{ 'enter_address' | translate }}"></textarea>
 								</div>
 							</div>
@@ -1270,8 +1269,7 @@
 							</header>
 							<div class="ims-form-section__body ims-form-section__body--stack">
 								<div class="return-items-card">
-									<p-table [value]="order.orderItems" [(selection)]="selectedItems"
-										styleClass="p-datatable-sm return-items-table">
+									<p-table [size]="'small'" class="return-items-table" [value]="order.orderItems" [(selection)]="selectedItems">
 										<ng-template pTemplate="header">
 											<tr>
 												<th class="col-image">{{ 'product_image' | translate }}</th>
@@ -1370,7 +1368,7 @@
 								<div class="field mb-0">
 									<label for="returnNotes" class="ims-form-label">{{ 'return_notes' | translate }}</label>
 									<textarea id="returnNotes" rows="3" [(ngModel)]="returnNotes" name="returnNotes"
-										placeholder="{{ 'return_notes' | translate }}" pInputTextarea class="w-full"></textarea>
+										placeholder="{{ 'return_notes' | translate }}" pTextarea class="w-full"></textarea>
 								</div>
 							</div>
 						</section>

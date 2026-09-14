@@ -129,11 +129,10 @@
             <i class="pi pi-info-circle mr-1"></i>{{ leaderboardNoticeKey | translate }}
           </p>
 
-          <p-table
+          <p-table [size]="'small'"
             [value]="data.rows"
             [paginator]="data.rows.length > 15"
             [rows]="15"
-            styleClass="p-datatable-sm"
             responsiveLayout="scroll">
             <ng-template pTemplate="header">
               <tr>

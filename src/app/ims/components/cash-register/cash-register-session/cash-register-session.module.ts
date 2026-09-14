@@ -5,7 +5,7 @@ import { CashRegisterSessionComponent } from './cash-register-session.component'
 import { DialogModule } from 'primeng/dialog';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { DropdownModule } from 'primeng/dropdown';
 import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -19,7 +19,7 @@ import { ToastModule } from 'primeng/toast';
     DialogModule,
     ButtonModule,
     InputTextModule,
-    InputTextareaModule,
+    TextareaModule,
     DropdownModule,
     TranslateModule,
     ProgressSpinnerModule,

@@ -687,8 +687,8 @@
                             </button>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="priceOverrides" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsPriceOverrides, [10,20,50])"
-                                [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="priceOverrides" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsPriceOverrides, [10,20,50])"
+                                [showCurrentPageReport]="true"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[10,20,50]" [loading]="isLoadingOverrides"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsPriceOverrides, [10,20,50], $event)">
@@ -761,8 +761,8 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table #ordersTable [value]="customerOrders" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsOrders, [15,30,50])"
-                                [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
+                            <p-table [size]="'small'" [stripedRows]="true" #ordersTable [value]="customerOrders" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsOrders, [15,30,50])"
+                                [showCurrentPageReport]="true"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsOrders, [15,30,50], $event)"
@@ -869,8 +869,8 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table #returnsTable [value]="customerReturns" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsReturns, [15,30,50])"
-                                [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
+                            <p-table [size]="'small'" [stripedRows]="true" #returnsTable [value]="customerReturns" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsReturns, [15,30,50])"
+                                [showCurrentPageReport]="true"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsReturns, [15,30,50], $event)"
@@ -967,8 +967,8 @@
                             </div>
                         </div>
                         <div class="card-body p-0">
-                            <p-table #paymentsTable [value]="customerPayments" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsPayments, [15,30,50])"
-                                [showCurrentPageReport]="true" styleClass="p-datatable-sm p-datatable-striped"
+                            <p-table [size]="'small'" [stripedRows]="true" #paymentsTable [value]="customerPayments" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.customerDetailsPayments, [15,30,50])"
+                                [showCurrentPageReport]="true"
                                 currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                 [rowsPerPageOptions]="[15,30,50]" [loading]="isLoading"
                                 (onPage)="pageSizeService.onPage(TablePageSizeKeys.customerDetailsPayments, [15,30,50], $event)"
@@ -1140,7 +1140,7 @@
                                     {{ 'notes' | translate }}
                                     <span class="ims-form-hint ims-form-hint--inline">({{ 'optional' | translate }})</span>
                                 </label>
-                                <textarea pInputTextarea id="overrideNotes" rows="3" [autoResize]="true"
+                                <textarea pTextarea id="overrideNotes" rows="3" [autoResize]="true"
                                     [(ngModel)]="overrideForm!.notes"
                                     placeholder="{{ 'enter_notes_optional' | translate }}"></textarea>
                             </div>

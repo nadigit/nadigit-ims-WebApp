@@ -412,8 +412,7 @@
                                     </div>
                                 </div>
                                 
-                                <p-table [value]="getOrdersInTransaction()" 
-                                    styleClass="p-datatable-sm"
+                                <p-table [size]="'small'" [value]="getOrdersInTransaction()"
                                     [paginator]="false"
                                     [rows]="pageSizeService.get(TablePageSizeKeys.orderDetailsPayments, [10,25,50])">
                                     <ng-template pTemplate="header">

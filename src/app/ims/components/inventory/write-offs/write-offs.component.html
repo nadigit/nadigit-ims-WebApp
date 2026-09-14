@@ -178,7 +178,7 @@
                 </div>
             </div>
 
-            <p-table
+            <p-table [showGridlines]="true"
                 [hidden]="(isLoading || isInitialLoad) && !writeOffs.length"
                 #dt
                 [value]="writeOffs" 
@@ -195,8 +195,7 @@
                 [rowHover]="true"
                 sortField="writeOffDate"
                 [sortOrder]="-1"
-                dataKey="writeOffId"
-                styleClass="p-datatable-gridlines">
+                dataKey="writeOffId">
 
                 <ng-template pTemplate="header">
                     <tr>
@@ -379,7 +378,7 @@
             <label for="rejectionReason">{{ 'rejection_reason' | translate }} ({{ 'optional' | translate }})</label>
             <textarea 
                 id="rejectionReason" 
-                pInputTextarea 
+                pTextarea 
                 [(ngModel)]="rejectionReason"
                 [rows]="3"
                 [placeholder]="'enter_rejection_reason' | translate"

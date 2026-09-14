@@ -58,8 +58,7 @@
         </div>
 
         <!-- Table -->
-        <p-table *ngIf="!isLoading" [value]="rows" dataKey="batchId" [responsive]="true"
-          styleClass="p-datatable-gridlines p-datatable-striped"
+        <p-table [showGridlines]="true" [stripedRows]="true" *ngIf="!isLoading" [value]="rows" dataKey="batchId" [responsive]="true"
           [paginator]="rows.length > 15" [rows]="15" [rowsPerPageOptions]="[15, 30, 50]">
           <ng-template pTemplate="header">
             <tr>

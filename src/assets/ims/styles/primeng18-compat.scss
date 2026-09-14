@@ -1,0 +1,147 @@
+/* =====================================================
+   PrimeNG 18 compatibility
+
+   PrimeNG 17 shipped a stylesheet (primeng.min.css) that styled a handful of plain CSS classes the
+   app uses directly in its own markup. PrimeNG 18 replaced that file with runtime design tokens,
+   and the classes below were not carried over — they are not components, so nothing in the token
+   theme emits them. The markup that uses them is ours, so the styling has to be ours too.
+
+   Each block restores the v17 appearance using the app's own brand variables, falling back to
+   PrimeNG 18's tokens. Delete a block once its markup has been migrated to the v18 equivalent
+   (p-iconfield for the input icons, a plain button class for p-link).
+   ===================================================== */
+
+/* ---------------------------------------------------------------------------
+   .p-link
+
+   A button reset, used by the top bar for its icon buttons. Without it the browser's default
+   button chrome comes back — grey fill, a 2px border — which is why every top bar icon and the
+   menu toggle drew a box around itself.
+   --------------------------------------------------------------------------- */
+.p-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-align: left;
+    background-color: transparent;
+    margin: 0;
+    padding: 0;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    font-family: inherit;
+    font-size: 1rem;
+    color: inherit;
+
+    &:disabled {
+        cursor: default;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   .p-input-icon-left
+
+   Puts an icon inside the left edge of an input. Used by the filter bar on every list page. With
+   the positioning gone the icon rendered above the field as a stray glyph.
+
+   v18's replacement is <p-iconfield><p-inputicon/></p-iconfield>, which is a markup change in 37
+   files; this keeps the existing markup working until that happens.
+   --------------------------------------------------------------------------- */
+.p-input-icon-left {
+    position: relative;
+    display: inline-block;
+
+    > i:first-of-type,
+    > .pi:first-of-type {
+        position: absolute;
+        top: 50%;
+        margin-top: -0.5rem;
+        left: 0.75rem;
+        color: var(--text-color-secondary, var(--p-text-muted-color, #64748b));
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    > .p-inputtext,
+    > input {
+        padding-left: 2.5rem;
+    }
+}
+
+/* Right-hand variant, same idea. */
+.p-input-icon-right {
+    position: relative;
+    display: inline-block;
+
+    > i:last-of-type,
+    > .pi:last-of-type {
+        position: absolute;
+        top: 50%;
+        margin-top: -0.5rem;
+        right: 0.75rem;
+        color: var(--text-color-secondary, var(--p-text-muted-color, #64748b));
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    > .p-inputtext,
+    > input {
+        padding-right: 2.5rem;
+    }
+}
+
+/* In RTL the icon belongs on the other side of the field. */
+[dir="rtl"] {
+    .p-input-icon-left {
+        > i:first-of-type,
+        > .pi:first-of-type {
+            left: auto;
+            right: 0.75rem;
+        }
+
+        > .p-inputtext,
+        > input {
+            padding-left: 0.75rem;
+            padding-right: 2.5rem;
+        }
+    }
+
+    .p-input-icon-right {
+        > i:last-of-type,
+        > .pi:last-of-type {
+            right: auto;
+            left: 0.75rem;
+        }
+
+        > .p-inputtext,
+        > input {
+            padding-right: 0.75rem;
+            padding-left: 2.5rem;
+        }
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Gridlines around the paginator and the summary row
+
+   showGridlines restores the borders on the header and body, but v18's own gridline rules target
+   .p-datatable-footer and .p-datatable-paginator-bottom — and it renders the summary template into
+   .p-datatable-tfoot and leaves the bottom paginator's wrapper unclassed. Neither selector matches,
+   so both sat outside the table's frame with no surface of their own.
+
+   Scoped to direct children so a real <tfoot> inside the table is not given panel padding.
+   --------------------------------------------------------------------------- */
+.p-datatable.p-datatable-gridlines {
+    .p-paginator {
+        border: 1px solid var(--surface-border, var(--p-content-border-color, #e2e8f0));
+        border-width: 0 1px 1px 1px;
+    }
+
+    > .p-datatable-tfoot {
+        background: var(--surface-ground, var(--p-surface-100, #f1f5f9));
+        border: 1px solid var(--surface-border, var(--p-content-border-color, #e2e8f0));
+        border-width: 0 1px 1px 1px;
+        padding: 0.75rem 1rem;
+        font-weight: 700;
+    }
+}

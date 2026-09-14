@@ -42,8 +42,7 @@
         </div>
       </div>
 
-      <p-table #dt *ngIf="!isLoading" [value]="sets" dataKey="lineOptionSetId"
-        styleClass="p-datatable-gridlines" responsiveLayout="scroll" [rowHover]="true"
+      <p-table [showGridlines]="true" #dt *ngIf="!isLoading" [value]="sets" dataKey="lineOptionSetId" responsiveLayout="scroll" [rowHover]="true"
         [paginator]="sets.length > 10"
         [rows]="pageSizeService.get(TablePageSizeKeys.lineOptionSets, [10,25,50])"
         [rowsPerPageOptions]="[10,25,50]" [showCurrentPageReport]="true"

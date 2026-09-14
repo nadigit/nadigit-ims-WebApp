@@ -156,7 +156,7 @@
                 </div>
             </div>
 
-            <p-table
+            <p-table [showGridlines]="true"
                 [hidden]="(isLoading || isInitialLoad) && !transfers.length"
                 #dt 
                 [value]="transfers" 
@@ -173,8 +173,7 @@
                 [rowHover]="true"
                 sortField="creationDate"
                 [sortOrder]="-1"
-                dataKey="transferId"
-                styleClass="p-datatable-gridlines">
+                dataKey="transferId">
 
                 <ng-template pTemplate="header">
                     <tr>
@@ -443,7 +442,7 @@
                             <textarea 
                                 id="notes"
                                 rows="3" 
-                                pInputTextarea 
+                                pTextarea 
                                 [(ngModel)]="transfer.notes" 
                                 name="notes"
                                 [autoResize]="true"

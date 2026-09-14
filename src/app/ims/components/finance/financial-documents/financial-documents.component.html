@@ -87,7 +87,7 @@
 				</div>
 			</div>
 
-			<p-table
+			<p-table [showGridlines]="true"
 				[hidden]="(isLoading || isInitialLoad) && !financialDocs.length"
 				#dt [value]="financialDocs" [columns]="cols" responsiveLayout="scroll"
 				[lazy]="true"
@@ -101,7 +101,7 @@
 				[sortField]="tableSortField"
 				[sortOrder]="tableSortOrder"
 				[(selection)]="selectedFinancialDocs" selectionMode="multiple" [rowHover]="true"
-				dataKey="financialDocId" styleClass="p-datatable-gridlines">
+				dataKey="financialDocId">
 				<ng-template pTemplate="header">
 					<tr>
 						<th style="width: 3rem">
@@ -385,7 +385,7 @@
 								</div>
 								<div class="field mb-0">
 									<label for="draftNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
-									<textarea id="draftNotes" pInputTextarea class="w-full" [(ngModel)]="financialDoc.notes"
+									<textarea id="draftNotes" pTextarea class="w-full" [(ngModel)]="financialDoc.notes"
 										rows="3" placeholder="{{ 'enter_notes' | translate }}"></textarea>
 								</div>
 							</div>
@@ -569,14 +569,14 @@
 											<div class="ims-form-section__body ims-form-section__body--stack">
 												<div class="field mb-0">
 													<label for="paymentTerms" class="ims-form-label">{{ 'payment_terms' | translate }}</label>
-													<textarea id="paymentTerms" pInputTextarea class="w-full"
+													<textarea id="paymentTerms" pTextarea class="w-full"
 														[(ngModel)]="financialDoc.paymentTerms" rows="3"
 														placeholder="{{ 'enter_payment_terms' | translate }}"
 														(ngModelChange)="triggerPreviewUpdate()"></textarea>
 												</div>
 												<div class="field mb-0">
 													<label for="issueNotes" class="ims-form-label">{{ 'notes' | translate }}</label>
-													<textarea id="issueNotes" pInputTextarea class="w-full"
+													<textarea id="issueNotes" pTextarea class="w-full"
 														[(ngModel)]="financialDoc.notes" rows="3"
 														placeholder="{{ 'enter_notes' | translate }}"
 														(ngModelChange)="triggerPreviewUpdate()"></textarea>
@@ -608,7 +608,7 @@
 													<label for="additionalReferences" class="ims-form-label">
 														{{ 'additional_references' | translate }}
 													</label>
-													<textarea id="additionalReferences" pInputTextarea class="w-full"
+													<textarea id="additionalReferences" pTextarea class="w-full"
 														[(ngModel)]="financialDoc.additionalReferences" name="additionalReferences"
 														rows="4" placeholder="{{ 'enter_additional_references' | translate }}"
 														(ngModelChange)="triggerPreviewUpdate()"></textarea>

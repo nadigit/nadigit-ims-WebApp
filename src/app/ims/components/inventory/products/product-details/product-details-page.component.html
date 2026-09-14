@@ -185,10 +185,9 @@
                 <div class="card-body">
                     <p class="text-600 text-sm mb-3">{{ 'warehouse_breakdown_description' | translate }}</p>
                     <p *ngIf="!salesStockIncludesApprovedWriteoffQty" class="text-600 text-xs mb-3">{{ 'warehouse_breakdown_writeoff_columns_hint' | translate }}</p>
-                    <p-table [value]="getAggregatedWarehouseStocks()" 
+                    <p-table [size]="'small'" [value]="getAggregatedWarehouseStocks()" 
                         dataKey="warehouseId" 
-                        responsiveLayout="scroll"
-                        styleClass="p-datatable-sm">
+                        responsiveLayout="scroll">
                         <ng-template pTemplate="header">
                             <tr>
                                 <th>{{ 'warehouse_name' | translate }}</th>
@@ -694,10 +693,9 @@
                             <span>{{ 'price_changes' | translate }}</span>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="productPriceHistory" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.productDetailsMovements, [5,10,20])"
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="productPriceHistory" [paginator]="true" [rows]="pageSizeService.get(TablePageSizeKeys.productDetailsMovements, [5,10,20])"
                                 [rowsPerPageOptions]="[5,10,20]" sortMode="multiple" responsiveLayout="scroll"
-                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.productDetailsMovements, [5,10,20], $event)"
-                                styleClass="p-datatable-sm p-datatable-striped">
+                                (onPage)="pageSizeService.onPage(TablePageSizeKeys.productDetailsMovements, [5,10,20], $event)">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th pSortableColumn="effectiveDate">
@@ -826,13 +824,12 @@
                                 </div>
                             </div>
                             <div class="card-body p-0">
-                                <p-table [value]="batches" [paginator]="batches.length > 10"
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="batches" [paginator]="batches.length > 10"
                                     [rows]="pageSizeService.get(TablePageSizeKeys.productDetailsBatches, [10,25,50])" [showCurrentPageReport]="true"
                                     currentPageReportTemplate="{first} - {last} of {totalRecords} {{ 'batches' | translate }}"
                                     sortMode="multiple" responsiveLayout="scroll"
                                     [rowsPerPageOptions]="[10,25,50]"
-                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.productDetailsBatches, [10,25,50], $event)"
-                                    styleClass="p-datatable-sm p-datatable-striped">
+                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.productDetailsBatches, [10,25,50], $event)">
                                     
                                     <ng-template pTemplate="header">
                                         <tr>
@@ -1019,8 +1016,7 @@
                             </div>
 
                             <div class="card-body p-0">
-                                <p-table [value]="productSuppliers" responsiveLayout="scroll"
-                                    styleClass="p-datatable-sm p-datatable-striped">
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="productSuppliers" responsiveLayout="scroll">
                                     <ng-template pTemplate="header">
                                         <tr>
                                             <th>{{ 'supplier' | translate }}</th>
@@ -1133,13 +1129,12 @@
                                 </div>
                             </div>
                             <div class="card-body p-0">
-                                <p-table [value]="writeOffs" [paginator]="writeOffs.length > 10"
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="writeOffs" [paginator]="writeOffs.length > 10"
                                     [rows]="pageSizeService.get(TablePageSizeKeys.productDetailsWriteOffs, [10,25,50])" [showCurrentPageReport]="true"
                                     currentPageReportTemplate="{first} - {last} of {totalRecords} {{ 'write_offs' | translate }}"
                                     sortMode="multiple" responsiveLayout="scroll"
                                     [rowsPerPageOptions]="[10,25,50]"
-                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.productDetailsWriteOffs, [10,25,50], $event)"
-                                    styleClass="p-datatable-sm p-datatable-striped">
+                                    (onPage)="pageSizeService.onPage(TablePageSizeKeys.productDetailsWriteOffs, [10,25,50], $event)">
                                     
                                     <ng-template pTemplate="header">
                                         <tr>
@@ -1585,7 +1580,7 @@
                         <div class="field">
                             <textarea
                                 id="adjustmentReason"
-                                pInputTextarea
+                                pTextarea
                                 [(ngModel)]="adjustmentReason"
                                 [rows]="3"
                                 [autoResize]="true"

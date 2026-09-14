@@ -53,11 +53,11 @@
         </div>
       </div>
 
-      <p-table [hidden]="isLoading && !overviews.length" [value]="overviews" dataKey="family.productFamilyId" [lazy]="true"
+      <p-table [showGridlines]="true" [hidden]="isLoading && !overviews.length" [value]="overviews" dataKey="family.productFamilyId" [lazy]="true"
         (onLazyLoad)="onLazyLoad($event)" [loading]="isLoading" [paginator]="true" [rows]="pageSize"
         [totalRecords]="totalRecords" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
         currentPageReportTemplate="{first} / {last} ({totalRecords} {{ 'table_records' | translate }})"
-        [rowHover]="true" styleClass="p-datatable-gridlines" responsiveLayout="scroll">
+        [rowHover]="true" responsiveLayout="scroll">
         <ng-template pTemplate="header">
           <tr>
             <th style="width: 3rem"></th>
@@ -123,7 +123,7 @@
           <tr *ngIf="isRowExpanded(row.family.productFamilyId)">
             <td colspan="9" class="p-0">
               <div class="p-3 surface-100 border-round mx-2 my-2">
-                <p-table [value]="row.variants" styleClass="p-datatable-sm p-datatable-gridlines"
+                <p-table [size]="'small'" [showGridlines]="true" [value]="row.variants"
                   responsiveLayout="scroll">
                   <ng-template pTemplate="header">
                     <tr>

@@ -578,9 +578,8 @@
                             </div>
                             
                             <ng-template #showProductsTable>
-                                <p-table [value]="order?.orderItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.orderDetailsPayments, [10,25,50])" [paginator]="true"
+                                <p-table [size]="'small'" [stripedRows]="true" [value]="order?.orderItems || []" [rows]="pageSizeService.get(TablePageSizeKeys.orderDetailsPayments, [10,25,50])" [paginator]="true"
                                     [showCurrentPageReport]="true"
-                                    styleClass="p-datatable-sm p-datatable-striped"
                                     currentPageReportTemplate="{first} - {last} / {totalRecords}"
                                     [rowsPerPageOptions]="[10,25,50]"
                                     (onPage)="pageSizeService.onPage(TablePageSizeKeys.orderDetailsPayments, [10,25,50], $event)"
@@ -892,7 +891,7 @@
                                 severity="warning" class="ml-auto"></p-tag>
                         </div>
                         <div class="card-body p-0">
-                            <p-table [value]="orderReturn.returnItems" styleClass="p-datatable-sm p-datatable-striped">
+                            <p-table [size]="'small'" [stripedRows]="true" [value]="orderReturn.returnItems">
                                 <ng-template pTemplate="header">
                                     <tr>
                                         <th>{{ 'product' | translate }}</th>

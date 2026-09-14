@@ -59,14 +59,14 @@
                 </div>
             </div>
 
-            <p-table
+            <p-table [showGridlines]="true"
                 *ngIf="(!isInitialLoad || accounts.length) && (!isLoading || accounts.length)"
                 #dt [value]="accounts" [(selection)]="selectedAccounts" 
                 [paginator]="true" [rows]="pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
                 (onPage)="onTablePage($event)"
                 [globalFilterFields]="['accountName','bank.name','accountNumber']"
                 [loading]="isLoading && accounts.length > 0" dataKey="accountId"
-                [responsive]="true" styleClass="p-datatable-gridlines">
+                [responsive]="true">
                 
                 <ng-template pTemplate="header">
                     <tr>
@@ -361,7 +361,7 @@
                                         <span class="p-inputgroup-addon">
                                             <i class="pi pi-align-left"></i>
                                         </span>
-                                        <textarea id="notes" name="notes" rows="3" pInputTextarea
+                                        <textarea id="notes" name="notes" rows="3" pTextarea
                                             [(ngModel)]="account.notes" [autoResize]="true"
                                             placeholder="{{ 'notes' | translate }}"></textarea>
                                     </div>

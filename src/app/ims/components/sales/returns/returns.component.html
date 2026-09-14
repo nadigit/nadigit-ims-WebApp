@@ -165,13 +165,12 @@
 
 			<div class="ims-loading-panel ims-loading-panel--section ims-table-loading" *ngIf="isLoading"><div class="ims-loading-panel__inner"><p-progressSpinner styleClass="ims-spinner--md" ariaLabel="loading"></p-progressSpinner></div></div>
 
-			<p-table #dt [value]="returns" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
+			<p-table [showGridlines]="true" #dt [value]="returns" *ngIf="!isLoading" [columns]="cols" responsiveLayout="scroll" [rows]="pageSize"
 				[globalFilterFields]="['returnId','returnDate','totalRefundableAmount','order.customer.firstName', 'order.customer.lastName','order.customer.companyName','order.reference']"
 				[paginator]="true" [rowsPerPageOptions]="rowsPerPageOptions" [showCurrentPageReport]="true"
 				currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
 				[(selection)]="selectedReturns" selectionMode="multiple" [rowHover]="true" dataKey="returnId"
 				[expandedRowKeys]="expandedRows"
-				styleClass="p-datatable-gridlines"
 				[lazy]="true"
 				(onLazyLoad)="onLazyLoad($event)"
 				[loading]="isLoading"
@@ -537,9 +536,8 @@
 									</div>
 
 									<div class="selected-products-card">
-										<p-table [value]="targetProducts" dataKey="productId"
-											[scrollable]="targetProducts.length > 4" scrollHeight="320px"
-											styleClass="p-datatable-sm selected-products-table">
+										<p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+											[scrollable]="targetProducts.length > 4" scrollHeight="320px">
 											<ng-template pTemplate="header">
 												<tr>
 													<th class="col-product">{{ 'product_name' | translate }}</th>
@@ -681,7 +679,7 @@
 								<div class="field mb-0">
 									<label for="returnNotes" class="ims-form-label">{{ 'return_notes' | translate }}</label>
 									<textarea id="returnNotes" rows="4" [(ngModel)]="return.notes" name="notes"
-										placeholder="{{ 'return_notes' | translate }}" pInputTextarea class="w-full"></textarea>
+										placeholder="{{ 'return_notes' | translate }}" pTextarea class="w-full"></textarea>
 								</div>
 							</div>
 						</section>

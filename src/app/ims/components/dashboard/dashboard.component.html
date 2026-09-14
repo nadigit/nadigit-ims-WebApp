@@ -703,7 +703,7 @@
                         class="p-button-text p-button-sm" routerLink="/sales/orders"></button>
                 </div>
             </ng-template>
-            <p-table [value]="todayOrders?.slice(0, 5)" [paginator]="false" styleClass="p-datatable-sm">
+            <p-table [size]="'small'" [value]="todayOrders?.slice(0, 5)" [paginator]="false">
                 <ng-template pTemplate="header">
                     <tr>
                         <th>{{'order_reference' | translate}}</th>
@@ -1031,7 +1031,7 @@
                         class="p-button-text p-button-sm" routerLink="/inventory/products"></button>
                 </div>
             </ng-template>
-            <p-table [value]="recentOrderedProducts?.slice(0, 5)" [paginator]="false" styleClass="p-datatable-sm">
+            <p-table [size]="'small'" [value]="recentOrderedProducts?.slice(0, 5)" [paginator]="false">
                 <ng-template pTemplate="header">
                     <tr>
                         <th style="width: 60px">{{'product_image' | translate}}</th>

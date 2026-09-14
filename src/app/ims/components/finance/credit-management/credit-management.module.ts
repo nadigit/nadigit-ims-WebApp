@@ -15,7 +15,7 @@ import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
-import { InputTextareaModule } from 'primeng/inputtextarea';
+import { TextareaModule } from 'primeng/textarea';
 import { CalendarModule } from 'primeng/calendar';
 import { TagModule } from 'primeng/tag';
 import { DropdownModule } from 'primeng/dropdown';
@@ -53,7 +53,7 @@ import { SelectButtonModule } from 'primeng/selectbutton';
     ButtonModule,
     DialogModule,
     InputNumberModule,
-    InputTextareaModule,
+    TextareaModule,
     CalendarModule,
     TagModule,
     DropdownModule,

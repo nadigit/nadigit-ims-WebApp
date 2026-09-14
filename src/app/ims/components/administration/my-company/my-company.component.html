@@ -379,7 +379,7 @@
 							<button pButton pRipple icon="pi pi-plus" label="{{ 'new_organization' | translate }}" class="p-button-sm" (click)="openNewOrganization()"></button>
 						</div>
 						<div class="card-body">
-							<p-table [value]="organizations" styleClass="p-datatable-sm" [rowHover]="true">
+							<p-table [size]="'small'" [value]="organizations" [rowHover]="true">
 								<ng-template pTemplate="header"><tr><th>{{ 'organization' | translate }}</th><th style="width:12rem;text-align:right;">{{ 'actions' | translate }}</th></tr></ng-template>
 								<ng-template pTemplate="body" let-org>
 									<tr>
@@ -575,7 +575,7 @@
                     <div class="p-inputgroup">
                       <span class="p-inputgroup-addon"><i class="pi pi-map-marker"></i></span>
                       <textarea id="address" rows="3" [(ngModel)]="organization.address" name="address"
-                        placeholder="{{ 'enter_address' | translate }}" ngDefaultControl pInputTextarea
+                        placeholder="{{ 'enter_address' | translate }}" ngDefaultControl pTextarea
                         [autoResize]="true"></textarea>
                     </div>
                   </div>
