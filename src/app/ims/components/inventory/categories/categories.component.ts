@@ -327,6 +327,7 @@ export class CategoriesComponent implements OnInit {
           this.categories.forEach((category: any) => (category.creationDate = new Date(<Date>category.creationDate)));
         },
         error: (err: any) => {
+          this.isLoading = false;
           this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_getting_categories'), life: 3000 })
           console.log(err)
         },
@@ -389,6 +390,7 @@ export class CategoriesComponent implements OnInit {
           this.suppliers.forEach((supplier: any) => (supplier.creationDate = new Date(<Date>supplier.creationDate)));
         },
         error: (err: any) => {
+          this.isLoading = false;
           console.error(err)
           this.messageService.add({
             severity: 'error',

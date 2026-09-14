@@ -689,6 +689,7 @@ export class CustomersComponent implements OnInit {
           this.customers.forEach((customer: any) => (customer.creationDate = new Date(<Date>customer.creationDate)));
         },
         error: (err: any) => {
+          this.isLoading = false;
           this.messageService.add({
             severity: 'error',
             summary: this.translate.instant('error'),

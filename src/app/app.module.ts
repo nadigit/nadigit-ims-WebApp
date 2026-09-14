@@ -20,6 +20,7 @@ import { MaintenanceInterceptor } from './interceptors/maintenance.interceptor';
 import { BackendUnavailableInterceptor } from './interceptors/backend-unavailable.interceptor';
 import { AcceptLanguageInterceptor } from './interceptors/accept-language.interceptor';
 import { OrganizationScopeInterceptor } from './interceptors/organization-scope.interceptor';
+import { RateLimitRetryInterceptor } from './interceptors/rate-limit-retry.interceptor';
 import { buildKeycloakRedirectUri } from './utils/keycloak-redirect.util';
 import { BrandLogoComponent } from './shared/brand-logo';
 import { LicenseActivationComponent } from './shared/license-activation';
@@ -150,6 +151,12 @@ const NadigitLara = definePreset(Lara, {
         {
             provide: HTTP_INTERCEPTORS,
             useClass: OrganizationScopeInterceptor,
+            multi: true
+        },
+        // Last on purpose: a rate-limit refusal it retries away never reaches the interceptors above.
+        {
+            provide: HTTP_INTERCEPTORS,
+            useClass: RateLimitRetryInterceptor,
             multi: true
         },
         // { provide: LocationStrategy, useClass: HashLocationStrategy },

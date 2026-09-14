@@ -349,6 +349,7 @@ export class WarehousesComponent implements OnInit, OnDestroy {
           this.suppliers.forEach((supplier: any) => (supplier.creationDate = new Date(<Date>supplier.creationDate)));
         },
         error: (err: any) => {
+          this.isLoading = false;
           console.error(err)
           this.messageService.add({
             severity: 'error',
@@ -767,6 +768,7 @@ export class WarehousesComponent implements OnInit, OnDestroy {
         console.log(this.warehouses);
       },
       error: (err: any) => {
+        this.isLoading = false;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),

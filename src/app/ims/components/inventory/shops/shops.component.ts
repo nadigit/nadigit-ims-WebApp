@@ -315,6 +315,7 @@ export class ShopsComponent implements OnInit {
         this.shops.forEach((shop: any) => (shop.creationDate = new Date(shop.creationDate)));
       },
       error: () => {
+        this.isLoading = false;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),

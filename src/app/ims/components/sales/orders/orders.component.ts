@@ -2875,6 +2875,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         this.resetForms();
       },
       error: () => {
+        this.loadingReceipt = false;
         this.messageService.add({
           severity: 'error',
           summary: this.translate.instant('error'),
@@ -5154,6 +5155,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           this.categories.forEach((category: any) => (category.creationDate = new Date(<Date>category.creationDate)));
         },
         error: (err: any) => {
+          this.isLoading = false;
           this.messageService.add({ severity: 'error', summary: this.translate.instant('error'), detail: this.translate.instant('error_while_getting_categories'), life: 3000 })
           console.log(err)
         },

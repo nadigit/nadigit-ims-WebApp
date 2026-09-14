@@ -566,6 +566,7 @@ export class SuppliersComponent implements OnInit {
           this.suppliers.forEach((supplier: any) => (supplier.creationDate = new Date(<Date>supplier.creationDate)));
         },
         error: (err: any) => {
+          this.isLoading = false;
           console.error(err)
           this.messageService.add({
             severity: 'error',
