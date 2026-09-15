@@ -257,7 +257,15 @@ html.login-pf {
   align-items: center;
   gap: 0.5rem;
 }
-.pf-v5-c-login__main .pf-v5-c-check__input { width: 1rem; height: 1rem; margin: 0; }
+.pf-v5-c-login__main .pf-v5-c-check__input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  /* Native box, brand tick: without these a browser in dark mode paints it as a black square. */
+  accent-color: var(--nadigit-saas);
+  color-scheme: light;
+  cursor: pointer;
+}
 .pf-v5-c-login__main .pf-v5-c-check__label { color: var(--nadigit-text-secondary); font-size: 0.9rem; }
 
 /* Links (forgot password / register). */
