@@ -1,4 +1,6 @@
 $gutter: 1rem;
+// First: the variables, palette and Inter face every stylesheet below reads (the PrimeNG 17 theme used to supply them).
+@import "assets/ims/styles/theme-foundation.scss";
 @import "assets/layout/styles/layout/layout.scss";
 
 // PrimeNG 18 has no resources/primeng.min.css: component styles come from the theme tokens
@@ -176,16 +178,16 @@ html[dir="rtl"] .layout-menu li.active-menuitem > a .layout-submenu-toggler {
 
 [dir="rtl"] .p-inputtext,
 [dir="rtl"] .p-dropdown,
-[dir="rtl"] .p-calendar,
+[dir="rtl"] .p-datepicker,
 [dir="rtl"] .p-button,
 [dir="rtl"] .p-inputnumber,
-[dir="rtl"] .p-inputtextarea,
+[dir="rtl"] .p-textarea,
 html[dir="rtl"] .p-inputtext,
 html[dir="rtl"] .p-dropdown,
-html[dir="rtl"] .p-calendar,
+html[dir="rtl"] .p-datepicker,
 html[dir="rtl"] .p-button,
 html[dir="rtl"] .p-inputnumber,
-html[dir="rtl"] .p-inputtextarea {
+html[dir="rtl"] .p-textarea {
   direction: rtl;
   text-align: right;
 }
@@ -210,14 +212,14 @@ html[dir="rtl"] .p-menubar {
 }
 
 /* PrimeNG Sidebar */
-[dir="rtl"] .p-sidebar,
-html[dir="rtl"] .p-sidebar {
+[dir="rtl"] .p-drawer,
+html[dir="rtl"] .p-drawer {
   left: auto !important;
   right: 0 !important;
 }
 
-[dir="rtl"] .p-sidebar-right,
-html[dir="rtl"] .p-sidebar-right {
+[dir="rtl"] .p-drawer-right .p-drawer,
+html[dir="rtl"] .p-drawer-right .p-drawer {
   right: auto !important;
   left: 0 !important;
 }
@@ -230,31 +232,31 @@ html[dir="rtl"] .p-dialog .p-dialog-header .p-dialog-header-icon {
 }
 
 /* PrimeNG Dropdown */
-[dir="rtl"] .p-dropdown-trigger,
-html[dir="rtl"] .p-dropdown-trigger {
+[dir="rtl"] .p-select-dropdown,
+html[dir="rtl"] .p-select-dropdown {
   left: 0 !important;
   right: auto !important;
 }
 
-[dir="rtl"] .p-dropdown-panel,
-html[dir="rtl"] .p-dropdown-panel {
+[dir="rtl"] .p-select-overlay,
+html[dir="rtl"] .p-select-overlay {
   direction: rtl;
   text-align: right;
 }
 
 /* PrimeNG Input Icons */
 [dir="rtl"] .p-input-icon-left > i,
-[dir="rtl"] .p-input-icon-left > .p-input-icon,
+[dir="rtl"] .p-input-icon-left > .p-inputicon,
 html[dir="rtl"] .p-input-icon-left > i,
-html[dir="rtl"] .p-input-icon-left > .p-input-icon {
+html[dir="rtl"] .p-input-icon-left > .p-inputicon {
   left: auto !important;
   right: 0.75rem !important;
 }
 
 [dir="rtl"] .p-input-icon-right > i,
-[dir="rtl"] .p-input-icon-right > .p-input-icon,
+[dir="rtl"] .p-input-icon-right > .p-inputicon,
 html[dir="rtl"] .p-input-icon-right > i,
-html[dir="rtl"] .p-input-icon-right > .p-input-icon {
+html[dir="rtl"] .p-input-icon-right > .p-inputicon {
   right: auto !important;
   left: 0.75rem !important;
 }
@@ -272,34 +274,34 @@ html[dir="rtl"] .p-input-icon-right > input {
 }
 
 /* PrimeNG Calendar */
-[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-inputtext,
-html[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-inputtext {
+[dir="rtl"] .p-datepicker:not(:has(> .p-datepicker-dropdown)) .p-inputtext,
+html[dir="rtl"] .p-datepicker:not(:has(> .p-datepicker-dropdown)) .p-inputtext {
   padding-right: 2.5rem !important;
   padding-left: 0.75rem !important;
 }
 
-[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-datepicker-trigger,
-html[dir="rtl"] .p-calendar:not(.p-calendar-w-btn) .p-datepicker-trigger {
+[dir="rtl"] .p-datepicker:not(:has(> .p-datepicker-dropdown)) .p-datepicker-dropdown,
+html[dir="rtl"] .p-datepicker:not(:has(> .p-datepicker-dropdown)) .p-datepicker-dropdown {
   left: 0 !important;
   right: auto !important;
 }
 
-[dir="rtl"] .p-datepicker,
-html[dir="rtl"] .p-datepicker {
+[dir="rtl"] .p-datepicker-panel,
+html[dir="rtl"] .p-datepicker-panel {
   direction: rtl;
 }
 
 /* PrimeNG SplitButton */
-[dir="rtl"] .p-splitbutton .p-splitbutton-defaultbutton,
-html[dir="rtl"] .p-splitbutton .p-splitbutton-defaultbutton {
+[dir="rtl"] .p-splitbutton .p-splitbutton-button,
+html[dir="rtl"] .p-splitbutton .p-splitbutton-button {
   border-top-right-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
   border-top-left-radius: var(--border-radius) !important;
   border-bottom-left-radius: var(--border-radius) !important;
 }
 
-[dir="rtl"] .p-splitbutton .p-splitbutton-menubutton,
-html[dir="rtl"] .p-splitbutton .p-splitbutton-menubutton {
+[dir="rtl"] .p-splitbutton .p-splitbutton-dropdown,
+html[dir="rtl"] .p-splitbutton .p-splitbutton-dropdown {
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
   border-top-right-radius: var(--border-radius) !important;
@@ -474,8 +476,8 @@ html[dir="rtl"] .p-inputgroup .p-inputtext:last-child {
 }
 
 /* TabView */
-[dir="rtl"] .p-tabview .p-tabview-nav li,
-html[dir="rtl"] .p-tabview .p-tabview-nav li {
+[dir="rtl"] .p-tabs .p-tablist-tab-list .p-tab,
+html[dir="rtl"] .p-tabs .p-tablist-tab-list .p-tab {
   direction: rtl;
 }
 
@@ -2566,8 +2568,8 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
 /* -------------------------------------------------------------------------- */
 /* POS: product search autocomplete panel (p-autoComplete appendTo="body")   */
 /* -------------------------------------------------------------------------- */
-.p-autocomplete-panel.p-component.p-autocomplete-panel.pos-autocomplete-panel,
-.p-autocomplete-panel.pos-autocomplete-panel {
+.p-autocomplete-overlay.p-component.p-autocomplete-overlay.pos-autocomplete-panel,
+.p-autocomplete-overlay.pos-autocomplete-panel {
   margin-top: 0.35rem;
   border-radius: 12px;
   border: 1px solid var(--surface-border, #e2e8f0);
@@ -2579,21 +2581,21 @@ html[dir="rtl"] .p-tooltip-left .p-tooltip-arrow {
   max-height: min(420px, 70vh);
 }
 
-.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-items {
+.p-autocomplete-overlay.pos-autocomplete-panel .p-autocomplete-list {
   padding: 0.35rem 0;
 }
 
-.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item {
+.p-autocomplete-overlay.pos-autocomplete-panel .p-autocomplete-option {
   padding: 0.65rem 0.85rem;
   min-height: 3.35rem;
   border-bottom: 1px solid var(--surface-border, #f1f5f9);
 }
 
-.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item:last-child {
+.p-autocomplete-overlay.pos-autocomplete-panel .p-autocomplete-option:last-child {
   border-bottom: none;
 }
 
-.p-autocomplete-panel.pos-autocomplete-panel .p-autocomplete-item.p-highlight {
+.p-autocomplete-overlay.pos-autocomplete-panel .p-autocomplete-option.p-focus {
   background: var(--highlight-bg, color-mix(in srgb, var(--primary-color, var(--brand-saas)) 14%, transparent));
   color: var(--highlight-text-color, inherit);
 }

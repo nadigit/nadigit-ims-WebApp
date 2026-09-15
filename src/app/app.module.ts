@@ -84,6 +84,32 @@ const NadigitLara = definePreset(Lara, {
             900: '#092368',
             950: '#061845',
         },
+        // Density. Lara 18 is a notch tighter than the lara-light-indigo theme the console was
+        // designed on: fields and buttons 0.625rem tall padding instead of 0.75rem, list options and
+        // menu items 0.625rem 1rem instead of 0.75rem 1.25rem. Every screen, form section and
+        // hero was laid out at the v17 sizes, so these put them back rather than re-tuning each page.
+        formField: {
+            paddingX: '0.75rem',
+            paddingY: '0.75rem',
+        },
+        list: {
+            option: { padding: '0.75rem 1.25rem' },
+            optionGroup: { padding: '0.75rem 1.25rem' },
+        },
+        navigation: {
+            item: { padding: '0.75rem 1.25rem' },
+            submenuLabel: { padding: '0.75rem 1.25rem' },
+        },
+    },
+    components: {
+        button: {
+            root: { paddingX: '1.25rem' },
+        },
+        datatable: {
+            headerCell: { padding: '1rem' },
+            bodyCell: { padding: '1rem' },
+            footerCell: { padding: '1rem' },
+        },
     },
 });
 

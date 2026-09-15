@@ -119,11 +119,11 @@ tr.cursor-pointer:hover {
 }
 
 /* View Toggle Buttons */
-.p-selectbutton .p-button {
+.p-selectbutton .p-togglebutton {
   min-width: 2.5rem;
 }
 
-.p-selectbutton .p-button i {
+.p-selectbutton .p-togglebutton i {
   font-size: 1rem;
 }
 
@@ -146,7 +146,7 @@ tr.cursor-pointer:hover {
   transition: background-color 0.2s;
 }
 
-::ng-deep .p-datatable .p-sortable-column:hover {
+::ng-deep .p-datatable .p-datatable-sortable-column:hover {
   background: var(--surface-hover);
 }
 

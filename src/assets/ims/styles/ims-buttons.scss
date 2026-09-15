@@ -65,8 +65,8 @@
   @include ims-icon-only-button-center;
 }
 
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) {
+.p-selectbutton .p-togglebutton.p-button-icon-only,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) {
   @include ims-icon-only-button-center;
 }
 
@@ -344,8 +344,8 @@
 
 // PrimeNG ConfirmDialog accept / reject
 .p-confirmdialog {
-  .p-confirmdialog-reject.p-button,
-  .p-button.p-confirmdialog-reject {
+  .p-confirmdialog-reject-button.p-button,
+  .p-button.p-confirmdialog-reject-button {
     color: var(--brand-text-secondary) !important;
     background: transparent !important;
     border-color: transparent !important;
@@ -357,8 +357,8 @@
     }
   }
 
-  .p-confirmdialog-accept.p-button,
-  .p-button.p-confirmdialog-accept {
+  .p-confirmdialog-accept-button.p-button,
+  .p-button.p-confirmdialog-accept-button {
     min-height: 2.5rem;
     padding-inline: 1.1rem !important;
     box-shadow: none !important;
@@ -517,8 +517,10 @@
 @mixin ims-toolbar-icon-tile {
   @include ims-icon-only-button-center;
 
-  background: var(--brand-white) !important;
-  border: 1px solid var(--brand-border) !important;
+  // Field tokens, not white: they are white in light mode and the navy field ground in dark, where
+  // a literal white left every export and clear-filter tile glaring out of the filter bar.
+  background: var(--brand-field-bg, var(--brand-white)) !important;
+  border: 1px solid var(--brand-field-border, var(--brand-border)) !important;
   min-width: 2.5rem !important;
   width: 2.5rem !important;
   height: 2.5rem !important;
@@ -629,7 +631,7 @@
 .products-filters,
 .ims-toolbar,
 .p-toolbar {
-  .p-selectbutton.p-buttonset {
+  .p-selectbutton {
     display: inline-flex !important;
     flex-wrap: nowrap;
     gap: 0 !important;
@@ -642,7 +644,7 @@
     box-shadow: 0 1px 2px rgba(11, 31, 74, 0.06);
   }
 
-  .p-selectbutton.p-buttonset > .p-button {
+  .p-selectbutton .p-togglebutton {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -674,7 +676,7 @@
   }
 
   // Text segments (e.g. Tous / En stock / Rupture de stock)
-  .p-selectbutton.p-buttonset > .p-button:has(.p-button-label) {
+  .p-selectbutton .p-togglebutton:has(.p-togglebutton-label) {
     flex: 0 0 auto !important;
     min-width: auto !important;
     width: auto !important;
@@ -693,25 +695,25 @@
     }
   }
 
-  .p-selectbutton.p-buttonset > .p-button:first-child {
+  .p-selectbutton :first-child > .p-togglebutton {
     border-top-left-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
     border-bottom-left-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
   }
 
-  .p-selectbutton.p-buttonset > .p-button:last-child {
+  .p-selectbutton :last-child > .p-togglebutton {
     border-top-right-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
     border-bottom-right-radius: calc(var(--brand-field-radius, 8px) - 1px) !important;
   }
 
   // Icon-only view toggle (list/grid)
-  .p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) {
+  .p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) {
     min-width: 2.5rem !important;
     width: 2.5rem !important;
     height: 2.5rem !important;
     padding: 0 !important;
   }
 
-  .p-selectbutton.p-buttonset > .p-button.p-highlight {
+  .p-selectbutton .p-togglebutton.p-togglebutton-checked {
     background: var(--primary-color) !important;
     color: #ffffff !important;
     position: relative;
@@ -730,7 +732,7 @@
     }
   }
 
-  .p-selectbutton.p-buttonset > .p-button:not(.p-highlight):not(:disabled):hover {
+  .p-selectbutton .p-togglebutton:not(.p-togglebutton-checked):not(:disabled):hover {
     background: var(--brand-bg-secondary, #f5f7fb) !important;
     color: var(--brand-text-primary) !important;
 
@@ -741,7 +743,7 @@
   }
 
   // Stock status labels can be long in FR (e.g. "Rupture de stock")
-  .ims-stock-status-filter.p-selectbutton.p-buttonset > .p-button:has(.p-button-label) {
+  .ims-stock-status-filter.p-selectbutton .p-togglebutton:has(.p-togglebutton-label) {
     padding: 0.5rem 1.25rem !important;
   }
 
@@ -752,7 +754,7 @@
     align-items: center;
   }
 
-  .p-dropdown .p-dropdown-label,
+  .p-dropdown .p-select-label,
   .p-multiselect .p-multiselect-label {
     padding: 0.625rem 0.75rem;
     font-size: 0.875rem;
@@ -795,13 +797,13 @@
     border-color: var(--primary-color) !important;
   }
 
-  .p-selectbutton.p-buttonset {
+  .p-selectbutton {
     background: var(--surface-card) !important;
     border-color: var(--surface-border) !important;
     box-shadow: none;
   }
 
-  .p-selectbutton.p-buttonset > .p-button {
+  .p-selectbutton .p-togglebutton {
     color: var(--text-color-secondary) !important;
 
     &:not(:last-child) {
@@ -809,7 +811,7 @@
     }
   }
 
-  .p-selectbutton.p-buttonset > .p-button:not(.p-highlight):not(:disabled):hover {
+  .p-selectbutton .p-togglebutton:not(.p-togglebutton-checked):not(:disabled):hover {
     background: var(--surface-hover) !important;
     color: var(--text-color) !important;
 

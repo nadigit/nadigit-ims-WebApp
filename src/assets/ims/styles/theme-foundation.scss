@@ -1,0 +1,222 @@
+// Theme foundation: what the PrimeNG 17 CSS theme (lara-light-indigo/theme.css) used to provide
+// globally, and what PrimeNG 18's token theme no longer does.
+//
+// PrimeNG 18 defines only --p-* tokens. Every stylesheet in this app was written against the variable
+// set the old theme declared on :root -- --font-family, --surface-*, the full colour palette -- and the
+// Inter face it loaded. With the old theme gone those var() calls resolved to nothing: body text fell
+// back to the browser serif, and --orange-500, --red-100 and friends painted transparent.
+//
+// Imported first in styles.scss, so nadigit-brand.scss still overrides whatever the brand redefines
+// (primary, text, surfaces, green/red/yellow/blue/cyan scales, dark mode).
+
+@font-face {
+  font-family: 'Inter var';
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  font-named-instance: 'Regular';
+  src: url('../fonts/Inter-roman.var.woff2?v=3.19') format('woff2');
+}
+
+:root {
+  font-family: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-variation-settings: normal;
+  --font-family: 'Inter var', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  --surface-a: #ffffff;
+  --surface-b: #f9fafb;
+  --surface-c: #f3f4f6;
+  --surface-d: #e5e7eb;
+  --surface-e: #ffffff;
+  --surface-f: #ffffff;
+  --text-color: #4b5563;
+  --text-color-secondary: #6b7280;
+  --primary-color: #1E5EFF;
+  --primary-color-text: #ffffff;
+  --surface-0: #ffffff;
+  --surface-50: #f9fafb;
+  --surface-100: #f3f4f6;
+  --surface-200: #e5e7eb;
+  --surface-300: #d1d5db;
+  --surface-400: #9ca3af;
+  --surface-500: #6b7280;
+  --surface-600: #4b5563;
+  --surface-700: #374151;
+  --surface-800: #1f2937;
+  --surface-900: #111827;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --content-padding: 1.25rem;
+  --inline-spacing: 0.5rem;
+  --border-radius: 6px;
+  --surface-ground: #f9fafb;
+  --surface-section: #ffffff;
+  --surface-card: #ffffff;
+  --surface-overlay: #ffffff;
+  --surface-border: #dfe7ef;
+  --surface-hover: #f6f9fc;
+  --focus-ring: 0 0 0 0.2rem #ADC8FF;
+  --maskbg: rgba(0, 0, 0, 0.4);
+  --highlight-bg: #E8EFFF;
+  --highlight-text-color: #143DB8;
+
+  /* Colour palette the old theme declared; nadigit-brand.scss remaps the brand scales on top. */
+  --blue-50: #f5f9ff;
+  --blue-100: #d0e1fd;
+  --blue-200: #abc9fb;
+  --blue-300: #85b2f9;
+  --blue-400: #609af8;
+  --blue-500: #3b82f6;
+  --blue-600: #326fd1;
+  --blue-700: #295bac;
+  --blue-800: #204887;
+  --blue-900: #183462;
+  --green-50: #f4fcf7;
+  --green-100: #caf1d8;
+  --green-200: #a0e6ba;
+  --green-300: #76db9b;
+  --green-400: #4cd07d;
+  --green-500: #22c55e;
+  --green-600: #1da750;
+  --green-700: #188a42;
+  --green-800: #136c34;
+  --green-900: #0e4f26;
+  --yellow-50: #fefbf3;
+  --yellow-100: #faedc4;
+  --yellow-200: #f6de95;
+  --yellow-300: #f2d066;
+  --yellow-400: #eec137;
+  --yellow-500: #eab308;
+  --yellow-600: #c79807;
+  --yellow-700: #a47d06;
+  --yellow-800: #816204;
+  --yellow-900: #5e4803;
+  --cyan-50: #f3fbfd;
+  --cyan-100: #c3edf5;
+  --cyan-200: #94e0ed;
+  --cyan-300: #65d2e4;
+  --cyan-400: #35c4dc;
+  --cyan-500: #06b6d4;
+  --cyan-600: #059bb4;
+  --cyan-700: #047f94;
+  --cyan-800: #036475;
+  --cyan-900: #024955;
+  --pink-50: #fef6fa;
+  --pink-100: #fad3e7;
+  --pink-200: #f7b0d3;
+  --pink-300: #f38ec0;
+  --pink-400: #f06bac;
+  --pink-500: #ec4899;
+  --pink-600: #c93d82;
+  --pink-700: #a5326b;
+  --pink-800: #822854;
+  --pink-900: #5e1d3d;
+  --indigo-50: #EEF3FF;
+  --indigo-100: #D6E4FF;
+  --indigo-200: #ADC8FF;
+  --indigo-300: #84ABFF;
+  --indigo-400: #5188FF;
+  --indigo-500: #1E5EFF;
+  --indigo-600: #1850E0;
+  --indigo-700: #1340B8;
+  --indigo-800: #0E3190;
+  --indigo-900: #092368;
+  --teal-50: #f3fbfb;
+  --teal-100: #c7eeea;
+  --teal-200: #9ae0d9;
+  --teal-300: #6dd3c8;
+  --teal-400: #41c5b7;
+  --teal-500: #14b8a6;
+  --teal-600: #119c8d;
+  --teal-700: #0e8174;
+  --teal-800: #0b655b;
+  --teal-900: #084a42;
+  --orange-50: #fff8f3;
+  --orange-100: #feddc7;
+  --orange-200: #fcc39b;
+  --orange-300: #fba86f;
+  --orange-400: #fa8e42;
+  --orange-500: #f97316;
+  --orange-600: #d46213;
+  --orange-700: #ae510f;
+  --orange-800: #893f0c;
+  --orange-900: #642e09;
+  --bluegray-50: #f7f8f9;
+  --bluegray-100: #dadee3;
+  --bluegray-200: #bcc3cd;
+  --bluegray-300: #9fa9b7;
+  --bluegray-400: #818ea1;
+  --bluegray-500: #64748b;
+  --bluegray-600: #556376;
+  --bluegray-700: #465161;
+  --bluegray-800: #37404c;
+  --bluegray-900: #282e38;
+  --purple-50: #E8FAFC;
+  --purple-100: #C5F0F5;
+  --purple-200: #9EE5EE;
+  --purple-300: #6FD9E6;
+  --purple-400: #4DD4E8;
+  --purple-500: #18C5D8;
+  --purple-600: #14A8B8;
+  --purple-700: #108A98;
+  --purple-800: #0C6C78;
+  --purple-900: #084E58;
+  --red-50: #fff5f5;
+  --red-100: #ffd0ce;
+  --red-200: #ffaca7;
+  --red-300: #ff8780;
+  --red-400: #ff6259;
+  --red-500: #ff3d32;
+  --red-600: #d9342b;
+  --red-700: #b32b23;
+  --red-800: #8c221c;
+  --red-900: #661814;
+  --primary-50: #EEF3FF;
+  --primary-100: #D6E4FF;
+  --primary-200: #ADC8FF;
+  --primary-300: #84ABFF;
+  --primary-400: #5188FF;
+  --primary-500: #1E5EFF;
+  --primary-600: #1850E0;
+  --primary-700: #1340B8;
+  --primary-800: #0E3190;
+  --primary-900: #092368;
+}
+
+// PrimeNG 17 set this on every component; v18 components inherit, so the body carries it instead.
+body,
+.p-component,
+input,
+textarea,
+select,
+button {
+  font-family: var(--font-family);
+  font-feature-settings: var(--font-feature-settings, normal);
+}
+
+// The dark half. PrimeNG 17 swapped in lara-dark-indigo/theme.css, which redefined the same set;
+// without it the light values above leaked into dark mode (a white .surface-section card inside a
+// navy dialog). Mapped to the brand's dark palette rather than Lara's greys; nadigit-brand.scss
+// still owns text, surface-0..900, ground, card, border, hover and highlight on top of these.
+:root[color-scheme='dark'] {
+  --surface-a: var(--brand-dark-surface, #102B63);
+  --surface-b: var(--brand-dark-bg, #0B1F4A);
+  --surface-c: rgba(255, 255, 255, 0.03);
+  --surface-d: rgba(255, 255, 255, 0.12);
+  --surface-e: var(--brand-dark-surface, #102B63);
+  --surface-f: var(--brand-dark-surface, #102B63);
+  --surface-section: var(--brand-dark-bg, #0B1F4A);
+  --surface-overlay: var(--brand-dark-surface, #102B63);
+  --primary-color-text: #ffffff;
+  --maskbg: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}

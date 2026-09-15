@@ -196,7 +196,7 @@
   padding: 0 2.5rem;
 }
 
-::ng-deep .company-tabs .p-tabview-nav {
+::ng-deep .company-tabs .p-tablist-tab-list {
   background: transparent;
   border: none;
   border-bottom: 2px solid var(--surface-border);
@@ -204,11 +204,11 @@
   gap: 0.5rem;
 }
 
-::ng-deep .company-tabs .p-tabview-nav li {
+::ng-deep .company-tabs .p-tablist-tab-list .p-tab {
   margin-right: 0.5rem;
 }
 
-::ng-deep .company-tabs .p-tabview-nav-link {
+::ng-deep .company-tabs .p-tab {
   background: transparent !important;
   border: none !important;
   border-bottom: 3px solid transparent !important;
@@ -220,19 +220,19 @@
   transition: all 0.2s ease;
 }
 
-::ng-deep .company-tabs .p-tabview-nav-link:hover {
+::ng-deep .company-tabs .p-tab:hover {
   background: var(--surface-hover) !important;
   color: var(--text-color);
 }
 
-::ng-deep .company-tabs .p-tabview-selected .p-tabview-nav-link,
-::ng-deep .company-tabs .p-highlight .p-tabview-nav-link {
+::ng-deep .company-tabs .p-tab-active .p-tab,
+::ng-deep .company-tabs .p-tab.p-tab-active {
   color: var(--primary-color) !important;
   border-bottom-color: var(--primary-color) !important;
   background: transparent !important;
 }
 
-::ng-deep .company-tabs .p-tabview-panels {
+::ng-deep .company-tabs .p-tabpanels {
   background: transparent;
   padding: 0;
   border: none;
@@ -339,12 +339,12 @@
   transform: translateY(-2px);
 }
 
-::ng-deep .p-organizationchart .p-organizationchart-line-down {
+::ng-deep .p-organizationchart .p-organizationchart-connector-down {
   border-color: var(--primary-color);
 }
 
-::ng-deep .p-organizationchart .p-organizationchart-line-right,
-::ng-deep .p-organizationchart .p-organizationchart-line-left {
+::ng-deep .p-organizationchart .p-organizationchart-connector-right,
+::ng-deep .p-organizationchart .p-organizationchart-connector-left {
   border-color: var(--surface-border);
 }
 
@@ -702,7 +702,7 @@
     margin-top: -1rem;
   }
 
-  ::ng-deep .company-tabs .p-tabview-nav-link {
+  ::ng-deep .company-tabs .p-tab {
     padding: 0.75rem 1rem !important;
     font-size: 0.875rem;
   }
@@ -739,7 +739,7 @@
     max-width: 140px;
   }
 
-  ::ng-deep .company-tabs .p-tabview-nav {
+  ::ng-deep .company-tabs .p-tablist-tab-list {
     flex-wrap: wrap;
   }
 

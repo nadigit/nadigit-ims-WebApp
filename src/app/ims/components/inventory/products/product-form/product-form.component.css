@@ -147,7 +147,7 @@
     background: var(--surface-ground);
   }
 
-  ::ng-deep .product-image-pimage .p-image-preview-indicator {
+  ::ng-deep .product-image-pimage .p-image-preview-mask {
     border-radius: var(--border-radius);
   }
 

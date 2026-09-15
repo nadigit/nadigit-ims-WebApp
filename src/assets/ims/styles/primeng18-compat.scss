@@ -17,8 +17,13 @@
    A button reset, used by the top bar for its icon buttons. Without it the browser's default
    button chrome comes back — grey fill, a 2px border — which is why every top bar icon and the
    menu toggle drew a box around itself.
+
+   Zero specificity (:where) on purpose. primeng.min.css loaded before the app's styles, so any rule
+   naming the element's own class won a tie against the reset. This file loads after them, and a
+   plain .p-link here painted the floating settings button (.layout-config-button.p-link, navy icon
+   on a primary fill) transparent, leaving a white icon on a white page.
    --------------------------------------------------------------------------- */
-.p-link {
+:where(.p-link) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -119,6 +124,149 @@
             padding-left: 2.5rem;
         }
     }
+}
+
+/* ---------------------------------------------------------------------------
+   .p-fluid on buttons
+
+   The v17 theme stretched every button inside a .p-fluid container, and pages were laid out on that
+   assumption (the dashboard's "Ask NadiPilot" bar, the full-width actions in form grids). v18 only
+   stretches a button given the fluid input, so without these rules they shrank to their label.
+   Copied from lara-light-indigo/theme.css.
+   --------------------------------------------------------------------------- */
+.p-fluid .p-button {
+    width: 100%;
+}
+
+.p-fluid .p-button-icon-only {
+    width: 3rem;
+}
+
+.p-fluid .p-inputgroup .p-button {
+    width: auto;
+}
+
+/* Dialogs carry class="p-fluid" for their form. v17 left that class on the <p-dialog> host, outside
+   the footer; v18 moves it onto the dialog root, so the rule above reached Cancel and Save and split
+   the footer into two half-width bars. Footer actions keep their own size. */
+.p-fluid .p-dialog-footer .p-button,
+.p-dialog.p-fluid .p-dialog-footer .p-button,
+.p-fluid .p-dialog-header .p-button {
+    width: auto;
+}
+
+.p-fluid .p-inputgroup .p-button.p-button-icon-only {
+    width: 3rem;
+}
+
+/* The same for form controls. v18 makes a control fluid only through its fluid input or a <p-fluid>
+   element ancestor; a .p-fluid class, which every form grid here uses, no longer counts. Without
+   these, a textarea sized to its cols attribute and sat on the label's baseline (the product form's
+   description), and pickers shrank to their placeholder. From v17's primeng.min.css, renamed. */
+.p-fluid .p-inputtext,
+.p-fluid .p-textarea,
+.p-fluid .p-input-icon-left,
+.p-fluid .p-input-icon-right,
+.p-fluid .p-iconfield {
+    width: 100%;
+}
+
+.p-fluid .p-select,
+.p-fluid .p-dropdown,
+.p-fluid .p-multiselect,
+.p-fluid .p-treeselect,
+.p-fluid .p-cascadeselect,
+.p-fluid .p-autocomplete,
+.p-fluid .p-password,
+.p-fluid .p-datepicker,
+.p-fluid .p-inputnumber {
+    display: flex;
+    width: 100%;
+}
+
+.p-fluid .p-datepicker .p-inputtext,
+.p-fluid .p-inputnumber .p-inputnumber-input,
+.p-fluid .p-autocomplete .p-autocomplete-input,
+.p-fluid .p-password .p-inputtext {
+    width: 1%;
+    flex: 1 1 auto;
+}
+
+.p-fluid .p-inputgroup .p-inputtext,
+.p-fluid .p-inputgroup .p-select,
+.p-fluid .p-inputgroup .p-inputnumber {
+    width: 1%;
+    flex: 1 1 auto;
+}
+
+/* ---------------------------------------------------------------------------
+   TabMenu item chrome
+
+   v17 drew a tab entirely on its link, which is where nadigit-brand.scss puts the padding, the
+   underline and the hover fill. v18 also pads and fills the <li> itself (14px 17.5px on a slate
+   ground, white when active) and adds a separate active bar, so every tab came out twice as tall,
+   boxed, with a second indicator line. The link stays the one styled surface.
+   --------------------------------------------------------------------------- */
+.p-tabmenu .p-tabmenu-nav .p-tabmenuitem {
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* v17 put a right margin on the link's icon; v18 leaves it to a gap the link no longer gets. */
+.p-tabmenu .p-tabmenu-nav .p-tabmenuitem .p-menuitem-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.p-tabmenu .p-tabmenuitem-active-bar,
+.p-tabmenu .p-tabmenu-active-bar {
+    display: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Sort icon spacing and the paginator's page-size picker
+
+   v17 spaced <p-sortIcon> half a rem from its header label; v18 expects the label and icon inside
+   .p-datatable-column-header-content, which gives the gap, and our header templates predate that
+   wrapper, so the arrows touched the text ("Amount↑↓"). The page-size select took v18's slate
+   filled ground instead of the white field every other select on the page has.
+   --------------------------------------------------------------------------- */
+.p-datatable .p-datatable-thead > tr > th p-sorticon,
+.p-datatable .p-datatable-thead > tr > th .p-sortable-column-icon {
+    margin-inline-start: 0.5rem;
+}
+
+.p-datatable .p-datatable-thead > tr > th p-sorticon .p-sortable-column-icon {
+    margin-inline-start: 0;
+}
+
+/* The paginator band under a table. nadigit-brand.scss tints it with the table header colour through
+   .p-paginator-bottom, a wrapper class v18 no longer renders, so the band went plain white in light
+   mode and Lara's near-black in dark. */
+.p-datatable .p-paginator,
+.p-treetable .p-paginator {
+    background: var(--brand-table-header-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--surface-border) !important;
+}
+
+.p-paginator .p-paginator-rpp-dropdown.p-select,
+.p-paginator .p-paginator-rpp-dropdown {
+    background: var(--brand-field-bg, var(--surface-card));
+    border: 1px solid var(--brand-field-border, var(--surface-border));
+}
+
+/* ---------------------------------------------------------------------------
+   .p-column-title
+
+   The cell templates carry a <span class="p-column-title"> for the stacked mobile layout. v17 hid it
+   unless the table was stacked; v18 dropped that rule along with responsiveLayout="stack", and every
+   table is responsiveLayout="scroll" here, so the label printed inside each cell ("Username e2e").
+   --------------------------------------------------------------------------- */
+.p-datatable .p-datatable-tbody > tr > td .p-column-title {
+    display: none;
 }
 
 /* ---------------------------------------------------------------------------

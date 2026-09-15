@@ -319,7 +319,7 @@
   padding: 0;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav {
+::ng-deep .settings-tab-shell .settings-tabs .p-tablist-tab-list {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -330,12 +330,12 @@
   padding: 0.65rem 0.85rem;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav li {
+::ng-deep .settings-tab-shell .settings-tabs .p-tablist-tab-list .p-tab {
   margin: 0;
   flex: 0 0 auto;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav-link {
+::ng-deep .settings-tab-shell .settings-tabs .p-tab {
   border: 1px solid transparent !important;
   border-radius: 2rem !important;
   padding: 0.5rem 1.15rem !important;
@@ -347,29 +347,29 @@
   transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav-link:hover {
+::ng-deep .settings-tab-shell .settings-tabs .p-tab:hover {
   color: var(--text-color) !important;
   background: var(--surface-card) !important;
   border-color: var(--surface-border) !important;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-selected .p-tabview-nav-link,
-::ng-deep .settings-tab-shell .settings-tabs .p-highlight .p-tabview-nav-link {
+::ng-deep .settings-tab-shell .settings-tabs .p-tab-active .p-tab,
+::ng-deep .settings-tab-shell .settings-tabs .p-tab.p-tab-active {
   color: var(--primary-color) !important;
   background: color-mix(in srgb, var(--primary-color) 16%, var(--surface-card)) !important;
   border-color: var(--primary-color) !important;
   box-shadow: none;
 }
 
-:host-context(.layout-theme-dark) ::ng-deep .settings-tab-shell .settings-tabs .p-highlight .p-tabview-nav-link {
+:host-context(.layout-theme-dark) ::ng-deep .settings-tab-shell .settings-tabs .p-tab.p-tab-active {
   background: color-mix(in srgb, var(--primary-color) 22%, var(--surface-ground)) !important;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-ink-bar {
+::ng-deep .settings-tab-shell .settings-tabs .p-tablist-active-bar {
   display: none;
 }
 
-::ng-deep .settings-tab-shell .settings-tabs .p-tabview-panels {
+::ng-deep .settings-tab-shell .settings-tabs .p-tabpanels {
   background: var(--surface-ground);
   padding: 0;
   border: none;
@@ -1079,7 +1079,7 @@
     font-size: 1.25rem;
   }
 
-  ::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav-link {
+  ::ng-deep .settings-tab-shell .settings-tabs .p-tab {
     padding: 0.45rem 0.95rem !important;
     font-size: 0.8125rem;
   }
@@ -1100,7 +1100,7 @@
     max-width: 140px;
   }
 
-  ::ng-deep .settings-tab-shell .settings-tabs .p-tabview-nav {
+  ::ng-deep .settings-tab-shell .settings-tabs .p-tablist-tab-list {
     flex-wrap: wrap;
     padding: 0 0.25rem;
   }

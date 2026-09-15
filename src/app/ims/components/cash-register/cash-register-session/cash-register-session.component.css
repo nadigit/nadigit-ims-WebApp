@@ -46,7 +46,7 @@ button.p-button-secondary:hover {
 input[pInputText],
 textarea[pInputTextarea],
 .p-inputtext,
-.p-inputtextarea {
+.p-textarea {
   width: 100%;
   border-radius: var(--border-radius);
   border: 1px solid var(--surface-border);
@@ -59,7 +59,7 @@ textarea[pInputTextarea],
 input[pInputText]:focus,
 textarea[pInputTextarea]:focus,
 .p-inputtext:focus,
-.p-inputtextarea:focus {
+.p-textarea:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 1px var(--primary-color);
   outline: none;
@@ -68,7 +68,7 @@ textarea[pInputTextarea]:focus,
 input[pInputText]::placeholder,
 textarea[pInputTextarea]::placeholder,
 .p-inputtext::placeholder,
-.p-inputtextarea::placeholder {
+.p-textarea::placeholder {
   color: var(--text-color-secondary);
 }
 
@@ -174,12 +174,12 @@ button[pButton] {
   border: 1px solid var(--surface-border);
 }
 
-.overlay-spinner .p-progress-spinner {
+.overlay-spinner .p-progressspinner {
   width: 3rem;
   height: 3rem;
 }
 
-.overlay-spinner .p-progress-spinner-circle {
+.overlay-spinner .p-progressspinner-circle {
   stroke: var(--primary-color);
 }
 

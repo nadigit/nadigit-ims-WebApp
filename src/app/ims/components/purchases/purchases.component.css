@@ -116,7 +116,7 @@
   width: 100%;
 } */
 
-.p-dropdown-item .flex {
+.p-select-option .flex {
   width: 100%;
   gap: 1rem;
 }
@@ -167,7 +167,7 @@
 .order-summary-card .p-dropdown,
 .order-summary-card .p-inputtext,
 .order-summary-card .p-inputnumber,
-.order-summary-card .p-calendar,
+.order-summary-card .p-datepicker,
 .order-summary-card .p-selectbutton {
   width: 100%;
 }
@@ -275,7 +275,7 @@
 }
 
 .selected-products-table .p-inputnumber,
-.selected-products-table .p-calendar {
+.selected-products-table .p-datepicker {
   width: 100%;
 }
 

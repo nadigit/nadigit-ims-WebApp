@@ -6,8 +6,8 @@
 
 /* Global icon-only button centering — PrimeNG ::after flex hack + label flex growth */
 .p-button.p-button-icon-only,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) {
+.p-selectbutton .p-togglebutton.p-button-icon-only,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) {
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -15,15 +15,15 @@
 }
 
 .p-button.p-button-icon-only::after,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only::after,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label))::after {
+.p-selectbutton .p-togglebutton.p-button-icon-only::after,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label))::after {
   content: none !important;
   display: none !important;
 }
 
 .p-button.p-button-icon-only .p-button-label,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-label,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-label {
+.p-selectbutton .p-togglebutton.p-button-icon-only .p-togglebutton-label,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) .p-togglebutton-label {
   flex: 0 0 auto !important;
   width: 0 !important;
   min-width: 0 !important;
@@ -35,12 +35,12 @@
 .p-button.p-button-icon-only .p-button-icon,
 .p-button.p-button-icon-only .p-button-icon-left,
 .p-button.p-button-icon-only .p-button-icon-right,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-icon,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-icon-left,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-button-icon-right,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-icon,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-icon-left,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-button-icon-right {
+.p-selectbutton .p-togglebutton.p-button-icon-only .p-togglebutton-icon,
+.p-selectbutton .p-togglebutton.p-button-icon-only .p-button-icon-left,
+.p-selectbutton .p-togglebutton.p-button-icon-only .p-button-icon-right,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) .p-togglebutton-icon,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) .p-button-icon-left,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) .p-button-icon-right {
   flex: 0 0 auto !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -51,10 +51,10 @@
 
 .p-button.p-button-icon-only .pi,
 .p-button.p-button-icon-only .p-icon,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .pi,
-.p-selectbutton.p-buttonset > .p-button.p-button-icon-only .p-icon,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .pi,
-.p-selectbutton.p-buttonset > .p-button:not(:has(.p-button-label)) .p-icon {
+.p-selectbutton .p-togglebutton.p-button-icon-only .pi,
+.p-selectbutton .p-togglebutton.p-button-icon-only .p-icon,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) .pi,
+.p-selectbutton .p-togglebutton:not(:has(.p-togglebutton-label)) .p-icon {
   margin: 0 !important;
   line-height: 1 !important;
 }
@@ -303,14 +303,14 @@
 }
 
 /* Dropdown label carries p-inputtext — strip inner border so it matches multiselect */
-.p-dropdown .p-dropdown-label.p-inputtext {
+.p-dropdown .p-select-label.p-inputtext {
   border: none !important;
   box-shadow: none !important;
   background: transparent !important;
   border-radius: 0 !important;
 }
 
-.p-dropdown .p-dropdown-trigger {
+.p-dropdown .p-select-dropdown {
   border: none !important;
   box-shadow: none !important;
 }

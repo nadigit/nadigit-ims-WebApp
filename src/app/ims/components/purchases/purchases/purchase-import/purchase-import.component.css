@@ -137,7 +137,7 @@
 :host ::ng-deep .invoice-review-table input.p-inputtext,
 :host ::ng-deep .invoice-review-table .p-inputnumber,
 :host ::ng-deep .invoice-review-table .p-inputnumber input,
-:host ::ng-deep .invoice-review-table .p-calendar,
+:host ::ng-deep .invoice-review-table .p-datepicker,
 :host ::ng-deep .invoice-review-table .p-dropdown {
   width: 100%;
 }

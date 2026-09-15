@@ -43,8 +43,8 @@
 .pos-header .p-button-sm{padding:.3rem;width:1.75rem;height:1.75rem}
 .pos-header .p-button-sm .pi{font-size:.8rem}
 .pos-header .p-dropdown{font-size:.8rem;padding:.3rem .5rem}
-.pos-header .p-dropdown .p-dropdown-trigger{width:1.75rem}
-.pos-header .p-dropdown .p-dropdown-label{padding:.3rem .5rem;line-height:1.2}
+.pos-header .p-dropdown .p-select-dropdown{width:1.75rem}
+.pos-header .p-dropdown .p-select-label{padding:.3rem .5rem;line-height:1.2}
 .pos-user-info{font-size:.8rem;line-height:1.2}
 .pos-shop-selector .p-dropdown{min-width:150px}
 .pos-product-card,.pos-quick-product-card{background:#fff;border:1px solid #e1e8ed;border-radius:10px;overflow:hidden;transition:all .3s cubic-bezier(.4,0,.2,1);cursor:pointer;position:relative;box-shadow:0 1px 3px rgba(0,0,0,.05);padding:0;display:flex;flex-direction:column;height:100%;min-height:180px;margin:0}
@@ -173,26 +173,26 @@
 }
 
 .pos-search-wrapper .p-autocomplete,
-.pos-search-wrapper .p-autocomplete-panel {
+.pos-search-wrapper .p-autocomplete-overlay {
   width: 100% !important;
 }
 
 .pos-search-wrapper ::ng-deep .p-autocomplete,
-.pos-search-wrapper ::ng-deep .p-autocomplete-panel {
+.pos-search-wrapper ::ng-deep .p-autocomplete-overlay {
   width: 100% !important;
   max-width: 100%;
 }
 
-.pos-search-wrapper ::ng-deep .p-autocomplete-panel {
+.pos-search-wrapper ::ng-deep .p-autocomplete-overlay {
   max-height: 400px;
   overflow-y: auto;
 }
 
-.pos-search-wrapper ::ng-deep .p-autocomplete-items {
+.pos-search-wrapper ::ng-deep .p-autocomplete-list {
   padding: 0.5rem 0;
 }
 
-.pos-search-wrapper ::ng-deep .p-autocomplete-item {
+.pos-search-wrapper ::ng-deep .p-autocomplete-option {
   padding: 0.5rem 0.75rem;
   margin: 0;
   border-bottom: 1px solid #f1f5f9;
@@ -200,11 +200,11 @@
   transition: background-color 0.2s ease;
 }
 
-.pos-search-wrapper ::ng-deep .p-autocomplete-item:hover {
+.pos-search-wrapper ::ng-deep .p-autocomplete-option:hover {
   background-color: #f8f9fa;
 }
 
-.pos-search-wrapper ::ng-deep .p-autocomplete-item:last-child {
+.pos-search-wrapper ::ng-deep .p-autocomplete-option:last-child {
   border-bottom: none;
 }
 
@@ -624,7 +624,7 @@
   padding: 0.4rem 0.5rem;
 }
 
-.pos-order-summary .p-dropdown .p-dropdown-label {
+.pos-order-summary .p-dropdown .p-select-label {
   padding: 0.4rem 0.5rem;
   font-size: 0.85rem;
 }
@@ -726,10 +726,10 @@
 .pos-pin-input .p-password input{width:100%;text-align:center;font-size:1.35rem;letter-spacing:.45rem;border:1.5px solid rgba(255,255,255,.18);border-radius:14px;padding:.9rem 2.75rem .9rem 1rem;background:rgba(8,24,58,.55);color:#fff;transition:border-color .2s ease,box-shadow .2s ease,background-color .2s ease}
 .pos-pin-input .p-password input::placeholder{color:rgba(201,212,229,.55);letter-spacing:normal;font-size:1rem}
 .pos-pin-input .p-password input:focus{border-color:var(--brand-saas,#1E5EFF);box-shadow:0 0 0 3px rgba(30,94,255,.25);background:rgba(8,24,58,.75)}
-.pos-pin-input .p-password .p-password-toggle,
-.pos-pin-input .p-password .p-password-toggle i{color:rgba(201,212,229,.8)}
-.pos-pin-input .p-password .p-password-toggle:hover,
-.pos-pin-input .p-password .p-password-toggle:hover i{color:#fff}
+.pos-pin-input .p-password .p-password-toggle-mask-icon,
+.pos-pin-input .p-password .p-password-toggle-mask-icon i{color:rgba(201,212,229,.8)}
+.pos-pin-input .p-password .p-password-toggle-mask-icon:hover,
+.pos-pin-input .p-password .p-password-toggle-mask-icon:hover i{color:#fff}
 /* PIN Error State */
 .pos-pin-input .p-password.p-invalid input,
 .pos-pin-input .p-password.p-error-shake input{border-color:#ff6b6b!important;background:rgba(229,72,77,.18)!important;box-shadow:0 0 0 3px rgba(229,72,77,.25)!important;color:#fff!important}
@@ -970,7 +970,7 @@
 ::ng-deep .pos-dialog .p-dialog-header{background:linear-gradient(135deg,#fff 0%,#f8f9fa 100%);border-bottom:1px solid #e1e8ed;border-radius:16px 16px 0 0;padding:1.5rem}
 ::ng-deep .pos-dialog .p-dialog-content{padding:1.5rem;background:#fff}
 ::ng-deep .pos-dialog .field.w-full{width:100%}
-::ng-deep .pos-dialog .field textarea.p-inputtextarea{width:100%!important;box-sizing:border-box}
+::ng-deep .pos-dialog .field textarea.p-textarea{width:100%!important;box-sizing:border-box}
 ::ng-deep .pos-dialog .field p-inputNumber,
 ::ng-deep .pos-dialog .field p-inputNumber > *,
 ::ng-deep .pos-dialog .field .p-inputnumber-wrapper,
@@ -1483,15 +1483,15 @@
   box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.2) !important;
 }
 
-:host-context(.layout-theme-dark) .pos-search-wrapper ::ng-deep .p-autocomplete-item,
-.layout-theme-dark .pos-search-wrapper ::ng-deep .p-autocomplete-item {
+:host-context(.layout-theme-dark) .pos-search-wrapper ::ng-deep .p-autocomplete-option,
+.layout-theme-dark .pos-search-wrapper ::ng-deep .p-autocomplete-option {
   background: var(--surface-card) !important;
   border-bottom-color: var(--surface-border) !important;
   color: var(--text-color);
 }
 
-:host-context(.layout-theme-dark) .pos-search-wrapper ::ng-deep .p-autocomplete-item:hover,
-.layout-theme-dark .pos-search-wrapper ::ng-deep .p-autocomplete-item:hover {
+:host-context(.layout-theme-dark) .pos-search-wrapper ::ng-deep .p-autocomplete-option:hover,
+.layout-theme-dark .pos-search-wrapper ::ng-deep .p-autocomplete-option:hover {
   background: var(--surface-hover) !important;
 }
 

@@ -99,7 +99,9 @@
 </div>
 
 <!-- Notification Sidebar -->
-<p-sidebar [(visible)]="notificationVisible" position="right"
+<!-- appendTo null: PrimeNG 18 portals drawers to <body> by default, out of reach of this component's
+     :host ::ng-deep rules (width, hidden header, zero padding). PrimeNG 17 rendered it in place. -->
+<p-sidebar [(visible)]="notificationVisible" position="right" [appendTo]="null"
   styleClass="notification-sidebar" [modal]="true" [showCloseIcon]="false" (onHide)="onNotificationsHide()">
     <div class="notification-container h-full flex flex-column">
         <div class="notification-hero">

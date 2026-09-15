@@ -2,7 +2,9 @@
     <i class="pi pi-cog"></i>
 </button>
 
-<p-sidebar [(visible)]="visible" position="right" [transitionOptions]="'.3s cubic-bezier(0, 0, 0.2, 1)'"
+<!-- appendTo null: PrimeNG 18 portals drawers to <body> by default, out of reach of this component's
+     :host ::ng-deep rules (width, hidden header, zero padding). PrimeNG 17 rendered it in place. -->
+<p-sidebar [(visible)]="visible" position="right" [appendTo]="null" [transitionOptions]="'.3s cubic-bezier(0, 0, 0.2, 1)'"
     styleClass="layout-config-sidebar" [modal]="true" [showCloseIcon]="false">
     <div class="config-container h-full flex flex-column">
         <div class="config-hero">

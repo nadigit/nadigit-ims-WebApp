@@ -89,7 +89,7 @@
 .purchase-payment-section .p-dropdown,
 .purchase-payment-section .p-inputtext,
 .purchase-payment-section .p-inputnumber,
-.purchase-payment-section .p-calendar {
+.purchase-payment-section .p-datepicker {
   width: 100%;
 }
 
@@ -471,7 +471,7 @@
 }
 
 :host ::ng-deep .selected-products-card .purchase-line-input .p-inputnumber,
-:host ::ng-deep .selected-products-card .purchase-line-batch__field .p-calendar,
+:host ::ng-deep .selected-products-card .purchase-line-batch__field .p-datepicker,
 :host ::ng-deep .selected-products-card .purchase-line-batch__field .p-inputtext {
   width: 100%;
 }

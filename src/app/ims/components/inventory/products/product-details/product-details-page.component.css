@@ -320,7 +320,7 @@
   border-radius: 4px;
 }
 
-::ng-deep .p-listbox .p-listbox-item {
+::ng-deep .p-listbox .p-listbox-option {
   padding: 0.875rem 1rem;
 }
 

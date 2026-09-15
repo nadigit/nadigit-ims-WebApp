@@ -356,11 +356,11 @@ $ims-form-gutter: 0.3125rem;
 .ims-form-section {
   .p-dropdown,
   .p-inputnumber,
-  .p-calendar {
+  .p-datepicker {
     width: 100%;
   }
 
-  .p-dropdown .p-dropdown-label {
+  .p-dropdown .p-select-label {
     padding-top: 0.55rem;
     padding-bottom: 0.55rem;
   }

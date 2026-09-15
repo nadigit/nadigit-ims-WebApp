@@ -17,7 +17,7 @@
   color: var(--text-color);
 }
 
-.p-dropdown-item .flex {
+.p-select-option .flex {
   width: 100%;
   gap: 1rem;
   color: var(--text-color);
@@ -66,20 +66,20 @@
   color: var(--text-color);
 }
 
-.p-dropdown .p-dropdown-label {
+.p-dropdown .p-select-label {
   color: var(--text-color);
 }
 
-.p-dropdown-panel {
+.p-select-overlay {
   background: var(--surface-card);
   border-color: var(--surface-border);
 }
 
-.p-dropdown-panel .p-dropdown-item {
+.p-select-overlay .p-select-option {
   color: var(--text-color);
 }
 
-.p-dropdown-panel .p-dropdown-item:not(.p-highlight):not(.p-disabled):hover {
+.p-select-overlay .p-select-option:not(.p-select-option-selected):not(.p-disabled):hover {
   background: var(--surface-hover);
   color: var(--text-color);
 }

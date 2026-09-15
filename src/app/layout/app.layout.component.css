@@ -1729,7 +1729,7 @@
   min-width: 15rem;
 }
 
-.copilot-edit-textarea.p-inputtextarea {
+.copilot-edit-textarea.p-textarea {
   font-size: 0.88rem;
   line-height: 1.5;
   border-radius: 12px;
@@ -2291,7 +2291,7 @@ html:has(.pos-fullscreen) {
 }
 .copilot-panel-footer .copilot-prompt-textarea,
 .copilot-panel-footer .copilot-prompt-textarea.p-inputtext,
-.copilot-panel-footer .copilot-prompt-textarea.p-inputtextarea {
+.copilot-panel-footer .copilot-prompt-textarea.p-textarea {
   flex: 1 1 auto;
   width: 100%;
   border: none !important;

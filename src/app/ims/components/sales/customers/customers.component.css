@@ -264,13 +264,13 @@
 }
 
 /* Enhanced TabView */
-.enhanced-dialog .enhanced-tabview .p-tabview-nav {
+.enhanced-dialog .enhanced-tabview .p-tablist-tab-list {
     background: var(--surface-ground);
     border: none;
     border-bottom: 1px solid var(--surface-border);
 }
 
-.enhanced-dialog .enhanced-tabview .p-tabview-nav li .p-tabview-nav-link {
+.enhanced-dialog .enhanced-tabview .p-tablist-tab-list .p-tab {
     border: none;
     background: transparent;
     color: var(--text-color-secondary);
@@ -280,12 +280,12 @@
     border-bottom: 2px solid transparent;
 }
 
-.enhanced-dialog .enhanced-tabview .p-tabview-nav li .p-tabview-nav-link:hover {
+.enhanced-dialog .enhanced-tabview .p-tablist-tab-list .p-tab:hover {
     color: var(--primary-color);
     background: var(--surface-hover);
 }
 
-.enhanced-dialog .enhanced-tabview .p-tabview-nav li.p-highlight .p-tabview-nav-link {
+.enhanced-dialog .enhanced-tabview .p-tablist-tab-list .p-tab.p-tab-active {
     color: var(--primary-color);
     border-bottom: 2px solid var(--primary-color);
     background: var(--surface-card);

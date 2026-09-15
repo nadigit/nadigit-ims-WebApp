@@ -16,24 +16,24 @@
   width: min(30rem, 100vw) !important;
 }
 
-:host ::ng-deep .notification-sidebar.p-sidebar {
+:host ::ng-deep .notification-sidebar.p-drawer {
   border-left: 1px solid var(--brand-border);
   box-shadow: -12px 0 40px rgba(11, 31, 74, 0.12);
 }
 
-:host ::ng-deep .notification-sidebar .p-sidebar-header {
+:host ::ng-deep .notification-sidebar .p-drawer-header {
   display: none;
 }
 
-:host ::ng-deep .notification-sidebar .p-sidebar-content {
+:host ::ng-deep .notification-sidebar .p-drawer-content {
   padding: 0;
   height: 100%;
   background: var(--brand-bg-secondary);
   color: var(--text-color);
 }
 
-:host ::ng-deep :root[color-scheme='dark'] .notification-sidebar .p-sidebar-content,
-:host ::ng-deep .layout-theme-dark .notification-sidebar .p-sidebar-content {
+:host ::ng-deep :root[color-scheme='dark'] .notification-sidebar .p-drawer-content,
+:host ::ng-deep .layout-theme-dark .notification-sidebar .p-drawer-content {
   background: var(--brand-dark-bg-secondary);
 }
 
@@ -766,10 +766,10 @@
 }
 
 /* Highlight the currently-active organization in the switch menu. */
-:host ::ng-deep .org-switcher-menu .org-switch-item--active > .p-menuitem-link {
+:host ::ng-deep .org-switcher-menu .org-switch-item--active > :is(.p-menuitem-link, .p-menu-item-link, .p-tieredmenu-item-link, .p-contextmenu-item-link) {
   font-weight: 700;
 }
-:host ::ng-deep .org-switcher-menu .org-switch-item--active > .p-menuitem-link .p-menuitem-icon {
+:host ::ng-deep .org-switcher-menu .org-switch-item--active > :is(.p-menuitem-link, .p-menu-item-link, .p-tieredmenu-item-link, .p-contextmenu-item-link) :is(.p-menuitem-icon, .p-menu-item-icon, .p-tieredmenu-item-icon, .p-contextmenu-item-icon) {
   color: var(--primary-color);
 }
 

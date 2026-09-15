@@ -116,7 +116,7 @@
   width: 100%;
 } */
 
-.p-dropdown-item .flex {
+.p-select-option .flex {
   width: 100%;
   gap: 1rem;
 }

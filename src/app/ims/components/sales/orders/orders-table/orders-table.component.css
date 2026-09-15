@@ -160,7 +160,7 @@
 }
 
 /* Improve scrollable table appearance */
-::ng-deep .compact-orders-table .p-datatable-wrapper {
+::ng-deep .compact-orders-table .p-datatable-table-container {
     border-radius: 6px;
     overflow-x: auto;
 }

@@ -21,7 +21,7 @@
 // PrimeNG progress spinner — brand arc + soft track ring
 // PrimeNG uses ::before for a padding-top aspect-ratio hack; track ring goes on ::after.
 // ---------------------------------------------------------------------------
-.p-progress-spinner {
+.p-progressspinner {
   position: relative;
   display: inline-block !important;
   width: var(--ims-spinner-size) !important;
@@ -52,7 +52,7 @@
   }
 }
 
-.p-progress-spinner-svg {
+.p-progressspinner-spin {
   position: absolute !important;
   inset: 0 !important;
   margin: auto !important;
@@ -62,7 +62,7 @@
   animation-duration: var(--ims-spinner-speed) !important;
 }
 
-.p-progress-spinner-circle {
+.p-progressspinner-circle {
   stroke: var(--ims-spinner-color) !important;
   stroke-linecap: round !important;
   animation-duration: var(--ims-spinner-speed) !important;
@@ -70,50 +70,50 @@
 
 // Size utilities — use styleClass="ims-spinner ims-spinner--md" on p-progressSpinner
 .ims-spinner--xs,
-.p-progress-spinner.ims-spinner--xs {
+.p-progressspinner.ims-spinner--xs {
   --ims-spinner-size: 1.25rem;
   --ims-spinner-stroke: 4;
 }
 
 .ims-spinner--sm,
-.p-progress-spinner.ims-spinner--sm {
+.p-progressspinner.ims-spinner--sm {
   --ims-spinner-size: 1.5rem;
   --ims-spinner-stroke: 3.5;
 }
 
 .ims-spinner--base,
-.p-progress-spinner.ims-spinner--base {
+.p-progressspinner.ims-spinner--base {
   --ims-spinner-size: 2.25rem;
   --ims-spinner-stroke: 3;
 }
 
 .ims-spinner--md,
-.p-progress-spinner.ims-spinner--md {
+.p-progressspinner.ims-spinner--md {
   --ims-spinner-size: 3rem;
   --ims-spinner-stroke: 3;
 }
 
 .ims-spinner--lg,
-.p-progress-spinner.ims-spinner--lg {
+.p-progressspinner.ims-spinner--lg {
   --ims-spinner-size: 3.125rem;
   --ims-spinner-stroke: 3;
 }
 
 .ims-spinner--xl,
-.p-progress-spinner.ims-spinner--xl {
+.p-progressspinner.ims-spinner--xl {
   --ims-spinner-size: 4rem;
   --ims-spinner-stroke: 2.5;
 }
 
 // Semantic variants
 .ims-spinner--on-dark,
-.p-progress-spinner.ims-spinner--on-dark {
+.p-progressspinner.ims-spinner--on-dark {
   --ims-spinner-color: #ffffff;
   --ims-spinner-track: rgba(255, 255, 255, 0.18);
 }
 
 .ims-spinner--success,
-.p-progress-spinner.ims-spinner--success {
+.p-progressspinner.ims-spinner--success {
   --ims-spinner-color: var(--brand-success);
   --ims-spinner-track: color-mix(in srgb, var(--brand-success) 16%, transparent);
 }
@@ -239,7 +239,7 @@
 // ---------------------------------------------------------------------------
 // Data table / tree / dataview loading masks
 // ---------------------------------------------------------------------------
-.p-datatable .p-datatable-loading-overlay,
+.p-datatable .p-datatable-mask,
 .p-treetable .p-treetable-loading-overlay,
 .p-dataview .p-dataview-loading-overlay {
   background: color-mix(in srgb, var(--surface-card) 82%, transparent) !important;
@@ -318,7 +318,7 @@
   backdrop-filter: blur(2px);
 }
 
-.p-blockui .p-progress-spinner {
+.p-blockui .p-progressspinner {
   --ims-spinner-size: 3.5rem;
 }
 

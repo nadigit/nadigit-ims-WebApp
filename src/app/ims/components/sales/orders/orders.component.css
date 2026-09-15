@@ -99,7 +99,7 @@
 .order-payment-section .p-dropdown,
 .order-payment-section .p-inputtext,
 .order-payment-section .p-inputnumber,
-.order-payment-section .p-calendar {
+.order-payment-section .p-datepicker {
   width: 100%;
 }
 
@@ -119,7 +119,7 @@
 
 
 /* Make calendar icon larger */
-.p-calendar .pi-calendar {
+.p-datepicker .pi-calendar {
   font-size: 1.25rem;
   color: var(--primary-color);
 }

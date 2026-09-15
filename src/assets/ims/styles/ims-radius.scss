@@ -37,14 +37,14 @@
   }
 }
 
-.p-sidebar,
+.p-drawer,
 .p-drawer {
   border-radius: var(--brand-radius-surface) !important;
   overflow: hidden;
 }
 
 // Right-positioned drawers: inner chrome matches the inner edge radius
-.p-sidebar-right {
+.p-drawer-right .p-drawer {
   .notification-hero,
   .config-hero {
     border-top-left-radius: var(--brand-radius-surface);
@@ -56,7 +56,7 @@
 }
 
 // Left-positioned drawers
-.p-sidebar-left {
+.p-drawer-left .p-drawer {
   .notification-hero,
   .config-hero {
     border-top-right-radius: var(--brand-radius-surface);
@@ -67,8 +67,8 @@
   }
 }
 
-[dir='rtl'] .p-sidebar-right,
-html[dir='rtl'] .p-sidebar-right {
+[dir='rtl'] .p-drawer-right .p-drawer,
+html[dir='rtl'] .p-drawer-right .p-drawer {
   .notification-hero,
   .config-hero {
     border-top-left-radius: 0;
@@ -81,8 +81,8 @@ html[dir='rtl'] .p-sidebar-right {
   }
 }
 
-[dir='rtl'] .p-sidebar-left,
-html[dir='rtl'] .p-sidebar-left {
+[dir='rtl'] .p-drawer-left .p-drawer,
+html[dir='rtl'] .p-drawer-left .p-drawer {
   .notification-hero,
   .config-hero {
     border-top-right-radius: 0;
@@ -97,43 +97,43 @@ html[dir='rtl'] .p-sidebar-left {
 
 // Form fields & pickers
 .p-inputtext,
-.p-inputtextarea,
+.p-textarea,
 .p-inputmask,
 .p-dropdown,
 .p-multiselect,
-.p-autocomplete:not(.p-autocomplete-dd) .p-autocomplete-input,
-.p-calendar .p-inputtext,
+.p-autocomplete:not(:has(> .p-autocomplete-dropdown)) .p-autocomplete-input,
+.p-datepicker .p-inputtext,
 .p-inputnumber .p-inputnumber-input,
 .p-password .p-password-input,
 .p-chips .p-chips-multiple-container,
 .p-treeselect,
 .p-listbox,
 .p-cascadeselect,
-.p-selectbutton.p-buttonset,
+.p-selectbutton,
 .p-togglebutton.p-button,
-.p-fileupload .p-fileupload-buttonbar,
+.p-fileupload .p-fileupload-header,
 .p-fileupload .p-fileupload-content {
   border-radius: var(--brand-radius-field) !important;
 }
 
 // Dropdown / multiselect chevron area follows field radius
-.p-dropdown .p-dropdown-trigger,
-.p-multiselect .p-multiselect-trigger,
+.p-dropdown .p-select-dropdown,
+.p-multiselect .p-multiselect-dropdown,
 .p-treeselect .p-treeselect-trigger {
   border-top-right-radius: calc(var(--brand-radius-field) - 1px) !important;
   border-bottom-right-radius: calc(var(--brand-radius-field) - 1px) !important;
 }
 
 // Overlay panels (menus, pick lists)
-.p-dropdown-panel,
-.p-multiselect-panel,
-.p-autocomplete-panel,
+.p-select-overlay,
+.p-multiselect-overlay,
+.p-autocomplete-overlay,
 .p-cascadeselect-panel,
 .p-treeselect-panel,
 .p-listbox,
-.p-datepicker,
-.p-datepicker:not(.p-datepicker-inline) .p-datepicker-header,
-.p-overlaypanel,
+.p-datepicker-panel,
+.p-datepicker-panel:not(.p-datepicker-panel-inline) .p-datepicker-header,
+.p-popover,
 .p-menu,
 .p-tieredmenu,
 .p-contextmenu,
@@ -144,18 +144,18 @@ html[dir='rtl'] .p-sidebar-left {
 }
 
 // Menu item hover chips inside overlays
-.p-menu .p-menuitem > .p-menuitem-content,
-.p-tieredmenu .p-menuitem > .p-menuitem-content,
-.p-contextmenu .p-menuitem > .p-menuitem-content,
-.p-slidemenu .p-menuitem > .p-menuitem-content,
-.p-menubar .p-menuitem > .p-menuitem-content,
-.p-panelmenu .p-panelmenu-content .p-menuitem > .p-menuitem-content {
+.p-menu :is(.p-menu-item, .p-tieredmenu-item, .p-contextmenu-item) > :is(.p-menu-item-content, .p-tieredmenu-item-content, .p-contextmenu-item-content),
+.p-tieredmenu :is(.p-menu-item, .p-tieredmenu-item, .p-contextmenu-item) > :is(.p-menu-item-content, .p-tieredmenu-item-content, .p-contextmenu-item-content),
+.p-contextmenu :is(.p-menu-item, .p-tieredmenu-item, .p-contextmenu-item) > :is(.p-menu-item-content, .p-tieredmenu-item-content, .p-contextmenu-item-content),
+.p-slidemenu :is(.p-menu-item, .p-tieredmenu-item, .p-contextmenu-item) > :is(.p-menu-item-content, .p-tieredmenu-item-content, .p-contextmenu-item-content),
+.p-menubar :is(.p-menu-item, .p-tieredmenu-item, .p-contextmenu-item) > :is(.p-menu-item-content, .p-tieredmenu-item-content, .p-contextmenu-item-content),
+.p-panelmenu .p-panelmenu-content :is(.p-menu-item, .p-tieredmenu-item, .p-contextmenu-item) > :is(.p-menu-item-content, .p-tieredmenu-item-content, .p-contextmenu-item-content) {
   border-radius: calc(var(--brand-radius-field) - 2px) !important;
 }
 
 // Feedback & inline UI
 .p-message,
-.p-inline-message,
+.p-message,
 .p-toast .p-toast-message,
 .p-tag:not(.p-tag-rounded),
 .p-chip {
@@ -181,16 +181,16 @@ html[dir='rtl'] .p-sidebar-left {
 }
 
 // Tabs — active panel corners
-.p-tabview .p-tabview-nav {
+.p-tabs .p-tablist-tab-list {
   border-radius: var(--brand-radius-field) var(--brand-radius-field) 0 0 !important;
 }
 
-.p-tabview .p-tabview-panels {
+.p-tabs .p-tabpanels {
   border-radius: 0 0 var(--brand-radius-field) var(--brand-radius-field) !important;
 }
 
 // Accordion headers
-.p-accordion .p-accordion-header .p-accordion-header-link {
+.p-accordion .p-accordion-header .p-accordionheader {
   border-radius: var(--brand-radius-field) !important;
 }
 
@@ -264,10 +264,10 @@ html[dir='rtl'] .p-sidebar-left {
   > .p-inputtext,
   > input.p-inputtext,
   > textarea,
-  > textarea.p-inputtextarea,
-  > .p-inputtextarea,
+  > textarea.p-textarea,
+  > .p-textarea,
   > .p-component.p-inputtext,
-  > .p-component.p-inputtextarea,
+  > .p-component.p-textarea,
   > .p-inputwrapper > .p-inputtext,
   > .p-inputwrapper > .p-component,
   > .p-inputwrapper > .p-component > .p-inputtext,
@@ -277,9 +277,9 @@ html[dir='rtl'] .p-sidebar-left {
   > p-inputnumber .p-inputnumber-input,
   > .p-inputnumber > .p-inputnumber-input,
   .p-inputtext,
-  .p-inputtextarea,
+  .p-textarea,
   input.p-inputtext,
-  textarea.p-inputtextarea {
+  textarea.p-textarea {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -300,11 +300,11 @@ html[dir='rtl'] .p-sidebar-left {
   }
 
   .p-inputtext:enabled:hover,
-  .p-inputtextarea:enabled:hover,
+  .p-textarea:enabled:hover,
   > .p-inputtext:enabled:hover,
   > input.p-inputtext:enabled:hover,
   > textarea:enabled:hover,
-  > textarea.p-inputtextarea:enabled:hover {
+  > textarea.p-textarea:enabled:hover {
     border: none !important;
     box-shadow: none !important;
   }
@@ -312,10 +312,10 @@ html[dir='rtl'] .p-sidebar-left {
   > .p-inputtext:enabled:focus,
   > input.p-inputtext:enabled:focus,
   > textarea:enabled:focus,
-  > textarea.p-inputtextarea:enabled:focus,
+  > textarea.p-textarea:enabled:focus,
   > .p-inputwrapper > .p-inputtext:enabled:focus,
   .p-inputtext:enabled:focus,
-  .p-inputtextarea:enabled:focus,
+  .p-textarea:enabled:focus,
   > p-inputnumber .p-inputnumber-input:enabled:focus,
   > .p-inputnumber > .p-inputnumber-input:enabled:focus {
     outline: none !important;
@@ -362,7 +362,7 @@ html[dir='rtl'] .p-sidebar-left {
 // ---------------------------------------------------------------------------
 // Autocomplete with dropdown — input + chevron as one unified field
 // ---------------------------------------------------------------------------
-.p-autocomplete.p-autocomplete-dd {
+.p-autocomplete:has(> .p-autocomplete-dropdown) {
   display: inline-flex !important;
   align-items: stretch !important;
   width: 100%;
@@ -376,7 +376,7 @@ html[dir='rtl'] .p-sidebar-left {
 
   .p-autocomplete-input.p-inputtext,
   input.p-autocomplete-input,
-  .p-autocomplete-multiple-container {
+  .p-autocomplete-input-multiple {
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
@@ -457,7 +457,7 @@ html[dir='rtl'] .p-sidebar-left {
 }
 
 // POS hero search keeps its custom separated layout
-.pos-autocomplete--hero.p-autocomplete.p-autocomplete-dd {
+.pos-autocomplete--hero.p-autocomplete:has(> .p-autocomplete-dropdown) {
   border: none !important;
   overflow: visible;
   background: transparent !important;
@@ -467,7 +467,7 @@ html[dir='rtl'] .p-sidebar-left {
 // ---------------------------------------------------------------------------
 // Calendar with icon button — input + trigger as one unified field
 // ---------------------------------------------------------------------------
-.p-calendar.p-calendar-w-btn {
+.p-datepicker:has(> .p-datepicker-dropdown) {
   display: inline-flex !important;
   align-items: stretch !important;
   width: 100%;
@@ -495,7 +495,7 @@ html[dir='rtl'] .p-sidebar-left {
     border: none !important;
   }
 
-  .p-datepicker-trigger.p-button {
+  .p-datepicker-dropdown.p-button {
     position: static !important;
     border: none !important;
     border-radius: 0 !important;
@@ -532,7 +532,7 @@ html[dir='rtl'] .p-sidebar-left {
     }
   }
 
-  &:not(.p-calendar-disabled):hover {
+  &:not(.p-disabled):hover {
     border-color: var(--primary-color) !important;
   }
 
@@ -580,8 +580,8 @@ html[dir='rtl'] .p-sidebar-left {
     }
   }
 
-  > .p-splitbutton-defaultbutton,
-  > .p-button.p-splitbutton-defaultbutton,
+  > .p-splitbutton-button,
+  > .p-button.p-splitbutton-button,
   > .p-button:first-child {
     flex: 1 1 auto;
     display: inline-flex !important;
@@ -591,8 +591,8 @@ html[dir='rtl'] .p-sidebar-left {
     padding-inline: 1rem !important;
   }
 
-  > .p-splitbutton-menubutton,
-  > .p-button.p-splitbutton-menubutton,
+  > .p-splitbutton-dropdown,
+  > .p-button.p-splitbutton-dropdown,
   > .p-button:last-child:not(:only-child) {
     flex: 0 0 auto !important;
     display: inline-flex !important;
@@ -618,8 +618,8 @@ html[dir='rtl'] .p-sidebar-left {
       font-size: 0.875rem;
     }
 
-    > .p-splitbutton-menubutton,
-    > .p-button.p-splitbutton-menubutton,
+    > .p-splitbutton-dropdown,
+    > .p-button.p-splitbutton-dropdown,
     > .p-button:last-child:not(:only-child) {
       min-width: 2.25rem !important;
       width: 2.25rem !important;
@@ -642,8 +642,8 @@ html[dir='rtl'] .p-sidebar-left {
       color: inherit !important;
     }
 
-    > .p-splitbutton-menubutton,
-    > .p-button.p-splitbutton-menubutton,
+    > .p-splitbutton-dropdown,
+    > .p-button.p-splitbutton-dropdown,
     > .p-button:last-child:not(:only-child) {
       color: var(--text-color-secondary) !important;
       border-inline-start-color: var(--brand-field-border) !important;
@@ -655,8 +655,8 @@ html[dir='rtl'] .p-sidebar-left {
       }
     }
 
-    > .p-splitbutton-defaultbutton,
-    > .p-button.p-splitbutton-defaultbutton,
+    > .p-splitbutton-button,
+    > .p-button.p-splitbutton-button,
     > .p-button:first-child {
       &:enabled:hover,
       &:enabled:focus {

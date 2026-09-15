@@ -1,5 +1,5 @@
 :host ::ng-deep {
-  .shop-schedule-calendar.p-calendar-w-btn {
+  .shop-schedule-calendar:has(> .p-datepicker-dropdown) {
     width: 100%;
 
     .p-inputtext {
@@ -8,7 +8,7 @@
       letter-spacing: 0.02em;
     }
 
-    .p-datepicker-trigger {
+    .p-datepicker-dropdown {
       color: var(--primary-color);
     }
   }
