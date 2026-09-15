@@ -299,6 +299,13 @@ export class LayoutService {
     replaceThemeLink(href: string) {
         const id = 'theme-css';
         let themeLink = <HTMLLinkElement>document.getElementById(id);
+        // PrimeNG 18 themes by token and the .layout-theme-dark class; index.html no longer links a
+        // theme stylesheet. Without this guard the config effect threw on cloneNode(null) the moment
+        // the colour scheme changed, before applyDocumentColorScheme ran, so the dark toggle did
+        // nothing until a reload.
+        if (!themeLink) {
+            return;
+        }
         const cloneLinkElement = <HTMLLinkElement>themeLink.cloneNode(true);
 
         cloneLinkElement.setAttribute('href', href);
