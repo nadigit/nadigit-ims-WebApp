@@ -36,6 +36,14 @@ const PAGES: Array<{ name: string; path: string }> = [
 
 test.beforeAll(() => fs.mkdirSync(OUT, { recursive: true }));
 
+// E2E_SHOT_DARK=1 captures the same pages in the dark theme (the console reads localStorage.darkMode
+// before first paint).
+if (process.env.E2E_SHOT_DARK) {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('darkMode', 'dark'));
+  });
+}
+
 for (const p of PAGES) {
   test(`shot ${p.name}`, async ({ page }) => {
     await visit(page, p.path);
@@ -44,6 +52,49 @@ for (const p of PAGES) {
     await page.screenshot({ path: path.join(OUT, `${p.name}.png`), fullPage: true });
   });
 }
+
+// Overlays carry most of the component chrome (fields, pickers, footers) and none of it shows on a
+// page shot. Viewport-sized, since a dialog is fixed to the viewport anyway.
+const DIALOGS: Array<{ name: string; path: string }> = [
+  { name: '12-dialog-product', path: 'inventory/products' },
+  { name: '13-dialog-customer', path: 'sales/customers' },
+  { name: '14-dialog-expense', path: 'finance/expenses' },
+];
+
+for (const d of DIALOGS) {
+  test(`shot ${d.name}`, async ({ page }) => {
+    await visit(page, d.path);
+    await page.getByRole('button', { name: /^\s*(New|Nouveau)\s*$/ }).first().click();
+    await page.locator('.p-dialog').first().waitFor();
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: path.join(OUT, `${d.name}.png`) });
+  });
+}
+
+// The two drawers: notifications (top bar bell) and the app settings panel (floating gear).
+test('shot 16-drawer-notifications', async ({ page }) => {
+  await visit(page, '');
+  await page.locator('.layout-topbar .pi-bell').first().click();
+  await page.locator('.notification-sidebar').first().waitFor();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(OUT, '16-drawer-notifications.png') });
+});
+
+test('shot 17-drawer-settings', async ({ page }) => {
+  await visit(page, '');
+  await page.locator('.layout-config-button').click();
+  await page.locator('.layout-config-sidebar').first().waitFor();
+  await page.waitForTimeout(1200);
+  await page.screenshot({ path: path.join(OUT, '17-drawer-settings.png') });
+});
+
+test('shot 15-select-open', async ({ page }) => {
+  await visit(page, 'sales/orders');
+  await page.locator('.filter-bar .p-dropdown, .filter-bar .p-select').first().click();
+  await page.locator('.p-select-overlay, .p-dropdown-panel').first().waitFor();
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: path.join(OUT, '15-select-open.png') });
+});
 
 test('shot 11-pos', async ({ page }) => {
   await page.goto('/webconsole/pos');
