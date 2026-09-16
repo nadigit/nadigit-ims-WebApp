@@ -167,7 +167,7 @@
 										</div>
 										<div class="info-content">
 											<span class="info-label">{{ 'document_number' | translate }}</span>
-											<span class="info-value font-mono">{{ financialDoc?.docNumber || 'N/A' }}</span>
+											<span class="info-value"><span class="reference-badge">{{ financialDoc?.docNumber || 'N/A' }}</span></span>
 										</div>
 									</div>
 									
@@ -520,7 +520,7 @@
 								<div class="order-summary-list">
 									<div class="summary-row" *ngIf="financialDoc.order.reference">
 										<span class="summary-label">{{ 'order_reference' | translate }}</span>
-										<span class="summary-value font-bold">{{ financialDoc.order.reference }}</span>
+										<span class="summary-value"><span class="reference-badge">#{{ financialDoc.order.reference }}</span></span>
 									</div>
 									<div class="summary-row" *ngIf="financialDoc.order.orderDate">
 										<span class="summary-label">{{ 'order_date' | translate }}</span>

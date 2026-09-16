@@ -485,7 +485,7 @@
                                                     </div>
                                                     <div class="refund-info-item" *ngIf="credit.transactionId">
                                                         <span class="refund-label">{{ 'transaction_id' | translate }}</span>
-                                                        <span class="refund-value font-mono">{{ credit.transactionId }}</span>
+                                                        <span class="refund-value"><span class="reference-badge">{{ credit.transactionId }}</span></span>
                                                     </div>
                                                 </div>
                                                 <div *ngIf="credit.notes" class="refund-notes mt-3">

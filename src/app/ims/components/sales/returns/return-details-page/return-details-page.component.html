@@ -536,7 +536,7 @@
                                                     </div>
                                                     <div class="refund-info-item">
                                                         <span class="refund-label">{{ 'transaction_id' | translate }}</span>
-                                                        <span class="refund-value font-mono">{{ refund.transactionId || 'N/A' }}</span>
+                                                        <span class="refund-value"><span class="reference-badge">{{ refund.transactionId || 'N/A' }}</span></span>
                                                     </div>
                                                 </div>
                                                 <div *ngIf="refund.notes" class="refund-notes mt-3">

@@ -35,7 +35,7 @@
               {{ 'check' | translate }}: {{ allocation.payment.checkNumber }}
             </span>
             <span *ngIf="allocation.payment.transactionId" class="text-sm">
-              {{ 'transaction' | translate }}: {{ allocation.payment.transactionId }}
+              {{ 'transaction' | translate }}: <span class="reference-badge">{{ allocation.payment.transactionId }}</span>
             </span>
             <span *ngIf="!allocation.payment.checkNumber && !allocation.payment.transactionId" class="text-500 text-sm">
               -

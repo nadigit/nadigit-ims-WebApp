@@ -216,7 +216,7 @@
         <!-- Transaction ID -->
         <ng-container *ngIf="col.field === 'transactionId'">
           <div class="flex align-items-center gap-2">
-            <p-chip *ngIf="payment.transactionId" [label]="payment.transactionId"></p-chip>
+            <span *ngIf="payment.transactionId" class="reference-badge">{{ payment.transactionId }}</span>
             <span *ngIf="!payment.transactionId" class="text-color-secondary">N/A</span>
             <!-- Multi-payment indicator -->
             <p-badge *ngIf="payment.isMultiPayment" [value]="payment.paymentCount" severity="info"
@@ -239,9 +239,7 @@
                style="cursor: help;"></i>
           </div>
           <ng-template #singleRef>
-            <span *ngIf="payment[col.field]; else noRef">
-              #{{ payment[col.field] }}
-            </span>
+            <span *ngIf="payment[col.field]; else noRef" class="reference-badge">#{{ payment[col.field] }}</span>
             <ng-template #noRef>
               <span class="text-color-secondary">N/A</span>
             </ng-template>

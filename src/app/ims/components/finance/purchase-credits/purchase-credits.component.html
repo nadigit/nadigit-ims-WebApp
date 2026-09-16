@@ -225,7 +225,7 @@
                                 (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
                         <td>
-                            <p-chip label="{{ credit.transactionId ?? 'N/A' }}" />
+                            <span class="reference-badge">{{ credit.transactionId ?? 'N/A' }}</span>
                             <i *ngIf="!isCreditValidForUpdate(credit)" class="pi pi-lock text-red-500 ml-2"
                                 pTooltip="{{ 'credit_locked' | translate }}">
                             </i>

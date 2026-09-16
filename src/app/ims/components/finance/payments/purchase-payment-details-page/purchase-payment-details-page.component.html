@@ -183,7 +183,7 @@
                                         </div>
                                         <div class="info-content">
                                             <span class="info-label">{{ 'transaction_id' | translate }}</span>
-                                            <span class="info-value font-mono">{{ payment.transactionId }}</span>
+                                            <span class="info-value"><span class="reference-badge">{{ payment.transactionId }}</span></span>
                                         </div>
                                     </div>
                                     
@@ -382,7 +382,7 @@
                                 <div class="mb-3 p-3 border-round surface-100">
                                     <div class="flex align-items-center justify-content-between mb-2">
                                         <span class="text-600 font-semibold">{{ 'transaction_id' | translate }}:</span>
-                                        <span class="font-mono font-bold">{{ payment?.transactionId }}</span>
+                                        <span class="reference-badge">{{ payment?.transactionId }}</span>
                                     </div>
                                     <div class="flex align-items-center justify-content-between">
                                         <span class="text-600 font-semibold">{{ 'total_payment_amount' | translate }}:</span>

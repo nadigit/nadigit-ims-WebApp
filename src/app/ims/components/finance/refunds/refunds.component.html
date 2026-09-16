@@ -245,7 +245,7 @@
                                 (click)="$event.stopPropagation()"></p-tableCheckbox>
                         </td>
                         <td>
-                            <p-chip label="{{ refund.transactionId ?? 'N/A' }}" />
+                            <span class="reference-badge">{{ refund.transactionId ?? 'N/A' }}</span>
                             <i *ngIf="!isRefundValidForUpdate(refund)" class="pi pi-lock text-red-500 ml-2"
                                 pTooltip="{{ 'refund_locked' | translate }}">
                             </i>
