@@ -293,52 +293,77 @@
     </div>
 </div>
 
-<p-dialog
-    header="Header"
-    [(visible)]="changePasswordForm"
-    [modal]="true"
-    [style]="{ width: '35rem' }"
-    [breakpoints]="{ '1199px': '75vw', '575px': '90vw' }">
-    <ng-template pTemplate="header">
-        <div class="inline-flex align-items-center justify-content-center gap-2">
-            <h5>{{ 'user_change_password' | translate }}</h5>
-        </div>
+<p-dialog [(visible)]="changePasswordForm" [header]="'user_change_password' | translate" [modal]="true"
+    [style]="{ width: 'min(92vw, 520px)' }" [breakpoints]="{ '640px': '95vw' }"
+    [draggable]="false" [resizable]="false" styleClass="ims-form-dialog-shell" class="p-fluid">
+    <ng-template pTemplate="content">
+        <form [formGroup]="passwordForm" class="ims-form-layout" (ngSubmit)="onSubmitPassword()">
+            <div class="ims-form-fields">
+                <section class="ims-form-section">
+                    <header class="ims-form-section__header">
+                        <div class="ims-icon-tile ims-icon-tile--sm ims-icon-tile--blue">
+                            <i class="pi pi-lock"></i>
+                        </div>
+                        <h3 class="ims-form-section__title">{{ 'user_change_password' | translate }}</h3>
+                    </header>
+                    <div class="grid ims-form-section__body">
+                            <div class="field col-12">
+                                <label for="currentPassword" class="ims-form-label">
+                                    {{ 'user_current_password' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-lock"></i></span>
+                                    <input pInputText id="currentPassword" name="currentPassword" formControlName="currentPassword" type="password"
+                                        autocomplete="current-password"
+                                        [ngClass]="{ 'ng-invalid ng-dirty': submitted && passwordForm.controls['currentPassword'].errors }" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && passwordForm.controls['currentPassword'].errors">
+                                    {{ 'current_password_required' | translate }}
+                                </small>
+                            </div>
+                            <div class="field col-12">
+                                <label for="newPassword" class="ims-form-label">
+                                    {{ 'user_new_password' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-key"></i></span>
+                                    <input pInputText id="newPassword" name="newPassword" formControlName="newPassword" type="password"
+                                        autocomplete="new-password"
+                                        [ngClass]="{ 'ng-invalid ng-dirty': submitted && passwordForm.controls['newPassword'].errors }" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && passwordForm.controls['newPassword'].errors">
+                                    {{ 'new_password_required' | translate }}
+                                </small>
+                            </div>
+                            <div class="field col-12">
+                                <label for="confirmPassword" class="ims-form-label">
+                                    {{ 'user_confirm_password' | translate }} <span class="required-asterisk">*</span>
+                                </label>
+                                <div class="p-inputgroup">
+                                    <span class="p-inputgroup-addon"><i class="pi pi-check-circle"></i></span>
+                                    <input pInputText id="confirmPassword" name="confirmPassword" formControlName="confirmPassword" type="password"
+                                        autocomplete="new-password"
+                                        [ngClass]="{ 'ng-invalid ng-dirty': submitted && passwordForm.controls['confirmPassword'].errors }" />
+                                </div>
+                                <small class="p-error" *ngIf="submitted && passwordForm.controls['confirmPassword'].errors">
+                                    {{ 'confirm_password_required' | translate }}
+                                </small>
+                                <small class="p-error" *ngIf="submitted && passwordForm.errors?.['passwordMismatch']">
+                                    {{ 'passwords_must_match' | translate }}
+                                </small>
+                            </div>
+                    </div>
+                </section>
+            </div>
+            <div class="ims-form-required-note">
+                <small><span class="required-asterisk">*</span> {{ 'fields_marked_with_asterisk_required' | translate }}</small>
+            </div>
+        </form>
     </ng-template>
-    <form [formGroup]="passwordForm">
-        <div class="p-fluid">
-            <div class="field" [ngClass]="{ 'p-invalid': submitted && passwordForm.controls['currentPassword'].errors }">
-                <label for="currentPassword">{{ 'user_current_password' | translate }}</label>
-                <input pInputText name="currentPassword" formControlName="currentPassword" type="password" required />
-                <small *ngIf="submitted && passwordForm.controls['currentPassword'].errors" class="p-error">
-                    {{ 'current_password_required' | translate }}
-                </small>
-            </div>
-            <div class="field" [ngClass]="{ 'p-invalid': submitted && passwordForm.controls['newPassword'].errors }">
-                <label for="newPassword">{{ 'user_new_password' | translate }}</label>
-                <input pInputText name="newPassword" formControlName="newPassword" type="password" required />
-                <small *ngIf="submitted && passwordForm.controls['newPassword'].errors" class="p-error">
-                    {{ 'new_password_required' | translate }}
-                </small>
-            </div>
-            <div class="field" [ngClass]="{ 'p-invalid': submitted && passwordForm.controls['confirmPassword'].errors }">
-                <label for="confirmPassword">{{ 'user_confirm_password' | translate }}</label>
-                <input pInputText name="confirmPassword" formControlName="confirmPassword" type="password" required />
-                <small *ngIf="submitted && passwordForm.controls['confirmPassword'].errors" class="p-error">
-                    {{ 'confirm_password_required' | translate }}
-                </small>
-                <small *ngIf="submitted && passwordForm.errors?.['passwordMismatch']" class="p-error">
-                    {{ 'passwords_must_match' | translate }}
-                </small>
-            </div>
-        </div>
-    </form>
     <ng-template pTemplate="footer">
-        <p-button
-            icon="pi pi-check"
-            type="submit"
-            label="{{ 'submit_button' | translate }}"
-            (click)="onSubmitPassword()"
-            [disabled]="passwordForm.invalid">
-        </p-button>
+        <button pButton pRipple type="button" icon="pi pi-times" class="p-button-text"
+            label="{{ 'cancel' | translate }}" (click)="changePasswordForm = false" [disabled]="passwordSaving"></button>
+        <button pButton pRipple type="button" icon="pi pi-check" class="p-button-primary"
+            label="{{ 'save_button' | translate }}" (click)="onSubmitPassword()" [loading]="passwordSaving"></button>
     </ng-template>
 </p-dialog>

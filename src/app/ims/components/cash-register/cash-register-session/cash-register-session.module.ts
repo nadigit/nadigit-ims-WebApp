@@ -10,6 +10,8 @@ import { DropdownModule } from 'primeng/dropdown';
 import { TranslateModule } from '@ngx-translate/core';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToastModule } from 'primeng/toast';
+import { InputNumberModule } from 'primeng/inputnumber';
+import { RippleModule } from 'primeng/ripple';
 
 @NgModule({
   declarations: [CashRegisterSessionComponent],
@@ -23,7 +25,9 @@ import { ToastModule } from 'primeng/toast';
     DropdownModule,
     TranslateModule,
     ProgressSpinnerModule,
-    ToastModule
+    ToastModule,
+    InputNumberModule,
+    RippleModule
   ],
   exports: [CashRegisterSessionComponent]
 })

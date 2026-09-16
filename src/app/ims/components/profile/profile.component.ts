@@ -11,6 +11,8 @@ import { KeycloakProfile } from 'keycloak-js';
 import { KeycloakService } from 'keycloak-angular';
 import { Role } from 'src/app/models/role';
 import { Credential } from 'src/app/models/credential';
+import { firstValueFrom } from 'rxjs';
+import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
 @Component({
   templateUrl: './profile.component.html',
@@ -39,6 +41,7 @@ export class ProfileComponent implements OnInit {
   userRoles: any;
 
   submitted: boolean = false;
+  passwordSaving = false;
 
   initialPreferredLanguage: string;
 
@@ -109,38 +112,38 @@ export class ProfileComponent implements OnInit {
     }, { validator: this.passwordMatchValidator });
   }
 
+  /** Change password: validate, wait for the server, close only on success (the save-flow pattern). */
   async onSubmitPassword() {
     this.submitted = true;
-    this.userCredential = {}
-    if (this.passwordForm.valid) {
-      // Submit password change
-      let values = this.passwordForm.value;
-      let body = {
-        userId: this.user?.id,
+    if (this.passwordForm.invalid || this.passwordSaving) {
+      return;
+    }
+    const values = this.passwordForm.value;
+    this.passwordSaving = true;
+    try {
+      await firstValueFrom(this.authService.changeMyPassword({
         currentPassword: values.currentPassword,
         newPassword: values.newPassword,
         confirmPassword: values.confirmPassword,
-      };
-      this.userCredential.temporary = false;
-      this.userCredential.type = "password";
-      this.userCredential.value = body.newPassword;
-
-      try {
-        const response = await this.authService.changeMyPassword({
-          currentPassword: body.currentPassword,
-          newPassword: body.newPassword,
-          confirmPassword: body.confirmPassword
-        }).toPromise();
-        console.log(response);
-        this.getUser();
-        this.messageService.add({ severity: 'success', summary: 'Successful', detail: 'Password Updated', life: 3000 });
-      } catch (error) {
-        console.log(error);
-        this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Error while updating password', life: 3000 })
-      }
+      }));
+      this.messageService.add({
+        severity: 'success',
+        summary: this.translate.instant('success'),
+        detail: this.translate.instant('password_changed'),
+        life: 3000,
+      });
       this.changePasswordForm = false;
       this.initForm();
-
+      this.getUser();
+    } catch (error) {
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: httpErrorMessage(error, this.translate.instant('error')),
+        life: 5000,
+      });
+    } finally {
+      this.passwordSaving = false;
     }
   }
 
@@ -297,7 +300,9 @@ export class ProfileComponent implements OnInit {
   }
 
   openChangePassword() {
-    this.initForm()
+    this.initForm();
+    // A fresh form: errors from an earlier attempt must not show before the user types.
+    this.submitted = false;
     this.changePasswordForm = true;
   }
 

@@ -6,6 +6,7 @@ import { CashRegisterSession } from 'src/app/models/cashRegisterSession';
 import { Shop } from 'src/app/models/shop';
 import { CashRegisterService } from 'src/app/services/cash-register.service';
 import { ShopService } from 'src/app/services/shop.service';
+import { AppConfigurationService } from 'src/app/services/app-configuration.service';
 import { Subscription } from 'rxjs';
 import { firstValueFrom } from 'rxjs';
 
@@ -30,6 +31,9 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
   notes: string = '';
 
   isLoading = false;
+  /** Set on a save attempt, so field errors show only after the user tried. */
+  submitted = false;
+  currency = 'MAD';
   hasActiveSession = false;
   profile: any;
   shops: Shop[] = [];
@@ -46,9 +50,14 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
     public keycloakService: KeycloakService,
     private shopService: ShopService,
     private translate: TranslateService,
-  ) { }
+    private appConfig: AppConfigurationService,
+  ) {
+    this.subscriptions.push(this.appConfig.currency$.subscribe((c) => { if (c) this.currency = c; }));
+  }
 
   async ngOnInit(): Promise<void> {
+    // The organisation's currency for the amount fields (the fallback only covers the first paint).
+    this.appConfig.loadCurrencyOnce();
     // Only initialize if dialog is visible
     if (!this.visible) {
       return;
@@ -200,6 +209,22 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
     if (this.shopId) this.loadCurrentSession();
   }
 
+  onOpenClick(): void {
+    this.submitted = true;
+    if ((this.isAdmin && !this.shopId) || this.openingAmount == null || this.openingAmount < 0) {
+      return;
+    }
+    this.openSession();
+  }
+
+  onCloseClick(): void {
+    this.submitted = true;
+    if (this.closingAmount == null || this.closingAmount < 0) {
+      return;
+    }
+    this.closeSession();
+  }
+
   async openSession(): Promise<void> {
     if (!this.shopId) {
       this.messageService.add({ severity: 'warn', summary: this.translate.instant('missing_shop'), detail: this.translate.instant('please_select_a_shop') });
@@ -308,6 +333,7 @@ export class CashRegisterSessionComponent implements OnInit, OnChanges, OnDestro
   }
 
   onDialogClose(): void {
+    this.submitted = false;
     // Reset transient values
     this.openingAmount = null;
     this.closingAmount = null;
