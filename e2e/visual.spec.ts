@@ -88,6 +88,18 @@ test('shot 17-drawer-settings', async ({ page }) => {
   await page.screenshot({ path: path.join(OUT, '17-drawer-settings.png') });
 });
 
+// System Info (About) opens from the sidebar's System menu. A tall viewport so the whole dialog shows.
+test('shot 18-dialog-system-info', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 1600 });
+  await visit(page, '');
+  const item = page.locator('.layout-menu a', { hasText: /^\s*(System Info(rmation)?|Informations système)\s*$/ }).first();
+  await item.scrollIntoViewIfNeeded();
+  await item.click();
+  await page.locator('.system-info-dialog').first().waitFor();
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: path.join(OUT, '18-dialog-system-info.png') });
+});
+
 test('shot 15-select-open', async ({ page }) => {
   await visit(page, 'sales/orders');
   await page.locator('.filter-bar .p-dropdown, .filter-bar .p-select').first().click();
