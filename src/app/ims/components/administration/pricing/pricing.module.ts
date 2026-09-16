@@ -20,11 +20,13 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TooltipModule } from 'primeng/tooltip';
+import { PageNoteComponent } from 'src/app/shared/page-note';
 
 @NgModule({
   declarations: [PricingComponent],
   imports: [
     CommonModule,
+    PageNoteComponent,
     FormsModule,
     PricingRoutingModule,
     TableModule,

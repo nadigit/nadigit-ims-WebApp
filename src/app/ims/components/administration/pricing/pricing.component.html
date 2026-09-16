@@ -5,7 +5,6 @@
         <div>
           <h2 class="m-0 text-900">{{ 'pricing_menu_title' | translate }}</h2>
           <p class="text-600 mt-2 mb-0">{{ 'pricing_page_description' | translate }}</p>
-          <p class="text-600 text-sm mt-2 mb-0 pricing-workflow-hint">{{ 'pricing_workflow_hint' | translate }}</p>
         </div>
       </div>
     </div>
@@ -13,6 +12,8 @@
     <div class="card px-6 py-6">
       <p-toast></p-toast>
       <p-confirmDialog></p-confirmDialog>
+
+      <app-page-note>{{ 'pricing_workflow_hint' | translate }}</app-page-note>
 
       <p-tabView [(activeIndex)]="activeTabIndex">
         <p-tabPanel>
@@ -42,7 +43,9 @@
           </div>
 
           <p-table [showGridlines]="true" *ngIf="!isLoading && priceLists.length > 0" [value]="priceLists" dataKey="id" [sortMode]="'single'" [sortField]="'priority'" [sortOrder]="-1"
-            [paginator]="priceLists.length > 12" [rows]="12" [showCurrentPageReport]="true"
+            [paginator]="true" [rows]="priceListsPaging.pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
+            [showCurrentPageReport]="true" (onPage)="onPriceListsPage($event)"
+            currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
             [rowHover]="true">
             <ng-template pTemplate="header">
               <tr>
@@ -130,7 +133,9 @@
 
             <p-table [showGridlines]="true" *ngIf="!isLoadingItems || priceListItems.length" [value]="priceListItems" dataKey="id"
               [loading]="isLoadingItems" [sortMode]="'single'" [sortField]="'minQty'" [sortOrder]="1"
-              [paginator]="priceListItems.length > 15" [rows]="15" [showCurrentPageReport]="true"
+              [paginator]="true" [rows]="priceItemsPaging.pageSize" [rowsPerPageOptions]="rowsPerPageOptions"
+              [showCurrentPageReport]="true" (onPage)="onPriceItemsPage($event)"
+              currentPageReportTemplate="{first} / {last} ({totalRecords} {{'table_records' | translate}})"
               [rowHover]="true">
               <ng-template pTemplate="header">
                 <tr>

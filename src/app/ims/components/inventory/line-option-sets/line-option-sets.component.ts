@@ -29,6 +29,9 @@ type ScopeType = 'GLOBAL' | 'PRODUCT' | 'CATEGORY';
 })
 export class LineOptionSetsComponent implements OnInit, OnDestroy {
   TablePageSizeKeys = TablePageSizeKeys;
+  // Same paging as every other list page: 20/50/100, remembered per table.
+  readonly rowsPerPageOptions = [20, 50, 100];
+  readonly paging = { pageSize: 20 };
   @ViewChild('dt') dt?: Table;
 
   isLoading = true;
@@ -65,7 +68,12 @@ export class LineOptionSetsComponent implements OnInit, OnDestroy {
     public pageSizeService: TablePageSizeService
   ) {}
 
+  onTablePage(event: { rows?: number | null }): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.lineOptionSets, this.rowsPerPageOptions, event, this.paging);
+  }
+
   async ngOnInit(): Promise<void> {
+    this.paging.pageSize = this.pageSizeService.initState(TablePageSizeKeys.lineOptionSets, this.rowsPerPageOptions, this.paging);
     this.translate.use(this.translationService.getPreferredLanguage());
     this.langSub = this.translationService.currentLanguage$.subscribe((lang) => {
       this.translate.use(lang);

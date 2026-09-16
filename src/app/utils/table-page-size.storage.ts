@@ -1,6 +1,8 @@
 /** localStorage keys for persisted table page sizes (rows per page). */
 export const TablePageSizeKeys = {
   products: 'products',
+  pricingLists: 'pricing-lists',
+  pricingItems: 'pricing-items',
   productsArchived: 'products-archived',
   orders: 'orders',
   ordersProductsPicker: 'orders-products-picker',

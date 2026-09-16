@@ -9,6 +9,8 @@ import { ProductService } from 'src/app/services/product.service';
 import { TranslateService } from '@ngx-translate/core';
 import { TranslationService } from 'src/app/services/translation.service';
 import { AppConfigurationService } from 'src/app/services/app-configuration.service';
+import { TablePageSizeService } from 'src/app/services/table-page-size.service';
+import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
 
 @Component({
   templateUrl: './pricing.component.html',
@@ -24,6 +26,11 @@ export class PricingComponent implements OnInit, OnDestroy {
   /** TabView: 0 = price lists, 1 = tier rules */
   activeTabIndex = 0;
   private readonly destroy$ = new Subject<void>();
+
+  // Same paging as every other list page: a remembered page size and the shared page report.
+  readonly rowsPerPageOptions = [20, 50, 100];
+  readonly priceListsPaging = { pageSize: 20 };
+  readonly priceItemsPaging = { pageSize: 20 };
 
   priceLists: PriceListDTO[] = [];
   selectedPriceList: PriceListDTO | null = null;
@@ -49,10 +56,15 @@ export class PricingComponent implements OnInit, OnDestroy {
     private confirmationService: ConfirmationService,
     private translate: TranslateService,
     private translateService: TranslationService,
-    private configService: AppConfigurationService
+    private configService: AppConfigurationService,
+    private pageSizeService: TablePageSizeService
   ) {}
 
   async ngOnInit() {
+    this.priceListsPaging.pageSize = this.pageSizeService.initState(
+      TablePageSizeKeys.pricingLists, this.rowsPerPageOptions, this.priceListsPaging);
+    this.priceItemsPaging.pageSize = this.pageSizeService.initState(
+      TablePageSizeKeys.pricingItems, this.rowsPerPageOptions, this.priceItemsPaging);
     this.translateService.currentLanguage$
       .pipe(takeUntil(this.destroy$))
       .subscribe(lang => this.translate.use(lang));
@@ -64,6 +76,14 @@ export class PricingComponent implements OnInit, OnDestroy {
     await this.configService.loadCurrencyOnce();
     await this.loadPriceLists();
     this.isLoading = false;
+  }
+
+  onPriceListsPage(event: { rows?: number | null }): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.pricingLists, this.rowsPerPageOptions, event, this.priceListsPaging);
+  }
+
+  onPriceItemsPage(event: { rows?: number | null }): void {
+    this.pageSizeService.applyPageEvent(TablePageSizeKeys.pricingItems, this.rowsPerPageOptions, event, this.priceItemsPaging);
   }
 
   ngOnDestroy(): void {
