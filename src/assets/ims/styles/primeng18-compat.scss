@@ -200,15 +200,35 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Option lists as wide as their field
+   Option lists exactly as wide as their field
 
    v18 sets the field's width as min-width on the .p-overlay wrapper, but stretches the list inside it
    only when the list is rendered within the field (.p-select .p-select-overlay { min-width: 100% }).
    Most forms here use appendTo="body", which moves the list out of the field, so it shrank to its
-   longest option: a 196px select opened a 156px list. v17 sized the list itself.
+   longest option: a 196px select opened a 156px list.
+
+   Width is pinned, not just floored: with only a minimum, a narrow field with long options (country,
+   stock tracking method) opened a list wider than the field. width: 0 on the wrapper lets its inline
+   min-width (the field's width) decide alone; the list fills it and long options wrap.
+
+   Autocomplete keeps the floor only: its result rows carry rich templates (product, stock, price)
+   that are laid out wider than the search box on purpose.
    --------------------------------------------------------------------------- */
-.p-overlay > .p-overlay-content > :is(.p-select-overlay, .p-multiselect-overlay, .p-autocomplete-overlay,
-    .p-treeselect-overlay, .p-cascadeselect-overlay) {
+.p-overlay:has(> .p-overlay-content > :is(.p-select-overlay, .p-multiselect-overlay, .p-treeselect-overlay)) {
+    width: 0;
+}
+
+.p-overlay > .p-overlay-content > :is(.p-select-overlay, .p-multiselect-overlay, .p-treeselect-overlay) {
+    width: 100%;
+    min-width: 100%;
+}
+
+.p-overlay > .p-overlay-content > :is(.p-select-overlay, .p-multiselect-overlay) :is(.p-select-option, .p-multiselect-option) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.p-overlay > .p-overlay-content > :is(.p-autocomplete-overlay, .p-cascadeselect-overlay) {
     min-width: 100%;
 }
 
