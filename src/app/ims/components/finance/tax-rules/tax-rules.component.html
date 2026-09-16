@@ -9,8 +9,10 @@
   </div>
   <app-page-note *ngIf="!isAdmin">{{ 'tax_rules_readonly_hint' | translate }}</app-page-note>
 
-  <!-- Rules engine disabled: rules are inert until tax.calculation.mode = RULES -->
-  <app-page-note *ngIf="!rulesModeActive" tone="warning">
+  <!-- Rules engine disabled: rules are inert until tax.calculation.mode = RULES
+         A standing page note like every other page's (Warehouse Transfers): info tone, not the amber
+         warning kept for in-context problems. -->
+  <app-page-note *ngIf="!rulesModeActive">
     {{ 'tax_rules_mode_global_banner' | translate }}
   </app-page-note>
 

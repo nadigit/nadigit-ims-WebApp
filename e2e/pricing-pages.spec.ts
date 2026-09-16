@@ -25,6 +25,19 @@ test('line price rules table uses the standard paginator', async ({ page }) => {
   await expectStandardPaginator(page, '.p-datatable');
 });
 
+// Standing page notes (rules engine off, read-only) look like Warehouse Transfers' note: info tone.
+for (const route of ['inventory/line-price-rules', 'finance/tax-rules', 'inventory/warehouse-transfers']) {
+  test(`${route} page notes use the standard info style`, async ({ page }) => {
+    await visit(page, route);
+    await page.waitForTimeout(800);
+    const notes = page.locator('app-page-note .ims-note');
+    const count = await notes.count();
+    for (let i = 0; i < count; i++) {
+      await expect(notes.nth(i)).not.toHaveClass(/ims-note--warning/);
+    }
+  });
+}
+
 test('pricing header matches the other list pages and both tables use the standard paginator', async ({ page }) => {
   await visit(page, 'inventory/pricing');
   // The header holds the title and one description line; the workflow hint lives in the card.

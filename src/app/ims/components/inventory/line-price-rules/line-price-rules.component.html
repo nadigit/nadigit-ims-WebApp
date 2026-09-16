@@ -16,8 +16,10 @@
 
       <app-page-note *ngIf="!isAdmin">{{ 'line_rules_readonly_hint' | translate }}</app-page-note>
 
-      <!-- Rules engine disabled: rules are inert until sales.pricing.rules.mode = RULES -->
-      <app-page-note *ngIf="!rulesModeActive" tone="warning">
+      <!-- Rules engine disabled: rules are inert until sales.pricing.rules.mode = RULES
+         A standing page note like every other page's (Warehouse Transfers): info tone, not the amber
+         warning kept for in-context problems. -->
+      <app-page-note *ngIf="!rulesModeActive">
         {{ 'line_rules_mode_off_banner' | translate }}
       </app-page-note>
 
