@@ -19,3 +19,8 @@ npm-debug.log*
 Thumbs.db
 docs
 *.md
+
+# Playwright output: before/after screenshot sets and failure traces run to hundreds of megabytes.
+e2e/screenshots
+test-results
+playwright-report
