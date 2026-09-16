@@ -703,7 +703,7 @@
 <p-dialog [(visible)]="layoutService.showSystemInfoDialog" [modal]="true"
   [style]="{width: '1040px', maxWidth: '96vw'}" [closable]="true" [dismissableMask]="true"
   [breakpoints]="{'1200px': '94vw', '768px': '96vw'}" [draggable]="false" [showHeader]="false"
-  styleClass="system-info-dialog">
+  styleClass="system-info-dialog ims-dialog-headerless">
 
   <div class="system-info-container">
     <div class="system-info-hero">
@@ -1131,6 +1131,7 @@
   [draggable]="false"
   [dismissableMask]="false"
   [showHeader]="false"
+  styleClass="ims-dialog-headerless"
   [style]="{ width: '360px', maxWidth: '90vw' }">
   <div class="flex flex-column align-items-center justify-content-center py-4">
     <p-progressSpinner styleClass="ims-spinner--lg" ariaLabel="loading"></p-progressSpinner>

@@ -200,6 +200,23 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Headerless dialogs
+
+   PrimeNG 18.0.2 declares showHeader but its template never reads it: the header bar renders
+   regardless. System Information, the licence-update spinner and the notification details dialog
+   draw their own branded heading, so each got a blank strip with a second close button stacked on
+   top of it. Those dialogs carry ims-dialog-headerless; delete this once PrimeNG honours the input.
+   --------------------------------------------------------------------------- */
+.p-dialog.ims-dialog-headerless > .p-dialog-header {
+    display: none !important;
+}
+
+.p-dialog.ims-dialog-headerless > .p-dialog-content:first-of-type {
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+}
+
+/* ---------------------------------------------------------------------------
    TabMenu item chrome
 
    v17 drew a tab entirely on its link, which is where nadigit-brand.scss puts the padding, the

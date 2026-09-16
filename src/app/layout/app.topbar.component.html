@@ -341,7 +341,7 @@
 <p-tieredMenu #notificationMenu [model]="notificationMenuItems" [popup]="true"></p-tieredMenu>
 
 <p-dialog [(visible)]="notificationDialogVisible" [modal]="true" [closable]="true"
-    [showHeader]="false" styleClass="notification-details-dialog"
+    [showHeader]="false" styleClass="notification-details-dialog ims-dialog-headerless"
     [style]="{width: '520px'}" [breakpoints]="{'960px': '90vw', '640px': '95vw'}">
 
     <div *ngIf="selectedNotification" class="notification-details-content">
