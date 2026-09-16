@@ -8,6 +8,7 @@ import { RippleModule } from 'primeng/ripple';
 import { InputSwitchModule } from 'primeng/inputswitch';
 import { AppConfigComponent } from './app.config.component';
 import { TranslateModule } from '@ngx-translate/core';
+import { SidebarBackdropCloseDirective } from '../../shared/sidebar-backdrop';
 
 
 @NgModule({
@@ -19,7 +20,8 @@ import { TranslateModule } from '@ngx-translate/core';
         ButtonModule,
         RippleModule,
         InputSwitchModule,
-        TranslateModule
+        TranslateModule,
+        SidebarBackdropCloseDirective
     ],
     declarations: [
         AppConfigComponent

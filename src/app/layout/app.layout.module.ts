@@ -36,6 +36,7 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ConfirmPopupModule } from 'primeng/confirmpopup';
 import { BrandLogoComponent } from '../shared/brand-logo';
+import { SidebarBackdropCloseDirective } from '../shared/sidebar-backdrop';
 
 
 @NgModule({ declarations: [
@@ -75,5 +76,6 @@ import { BrandLogoComponent } from '../shared/brand-logo';
         ProgressSpinnerModule,
         ConfirmPopupModule,
         CashRegisterSessionModule,
-        BrandLogoComponent], providers: [provideHttpClient(withInterceptorsFromDi())] })
+        BrandLogoComponent,
+        SidebarBackdropCloseDirective], providers: [provideHttpClient(withInterceptorsFromDi())] })
 export class AppLayoutModule { }
