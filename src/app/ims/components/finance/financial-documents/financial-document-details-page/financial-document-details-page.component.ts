@@ -92,7 +92,9 @@ export class FinancialDocumentDetailsPageComponent implements OnInit {
           { label: translations['Return Note'], value: 'RETURN_NOTE' },
           { label: translations['Proforma Invoice'] || 'Proforma Invoice', value: 'PROFORMA_INVOICE' },
           { label: translations['Invoice'], value: 'INVOICE' },
-          { label: translations['Credit Note'], value: 'CREDIT_NOTE' }
+          { label: translations['Credit Note'], value: 'CREDIT_NOTE' },
+          { label: translations['Receipt'], value: 'RECEIPT' },
+          { label: translations['Payment Voucher'], value: 'PAYMENT_VOUCHER' }
         ];
 
         this.docStatuses = [
@@ -254,6 +256,10 @@ export class FinancialDocumentDetailsPageComponent implements OnInit {
         return 'pi pi-file-pdf';
       case 'CREDIT_NOTE':
         return 'pi pi-file-edit';
+      case 'RECEIPT':
+        return 'pi pi-check-circle';
+      case 'PAYMENT_VOUCHER':
+        return 'pi pi-money-bill';
       default:
         return 'pi pi-file';
     }

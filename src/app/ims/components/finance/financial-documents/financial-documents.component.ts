@@ -96,6 +96,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
   currency: string = '';
   userRoles: any;
   docTypes: any;
+  /** docTypes plus the types raised from payments (receipts, vouchers), which the form cannot create. */
+  filterDocTypes: any;
   docStatuses: any;
 
   // Filter properties
@@ -194,6 +196,11 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
           { label: translations['Proforma Invoice'] || 'Proforma Invoice', value: 'PROFORMA_INVOICE' },
           { label: translations['Invoice'], value: 'INVOICE' },
           { label: translations['Credit Note'], value: 'CREDIT_NOTE' }
+        ];
+        this.filterDocTypes = [
+          ...this.docTypes,
+          { label: translations['Receipt'], value: 'RECEIPT' },
+          { label: translations['Payment Voucher'], value: 'PAYMENT_VOUCHER' }
         ];
 
         this.docStatuses = [
@@ -1470,8 +1477,8 @@ export class FinancialDocumentsComponent implements OnInit, OnDestroy {
 
   getDocTypeLabel(docType: string | undefined): string {
     if (!docType) return 'N/A';
-    const docTypeObj = this.docTypes?.find((dt: any) => dt.value === docType);
-    return docTypeObj?.label || docType;
+    const docTypeObj = this.filterDocTypes?.find((dt: any) => dt.value === docType);
+    return docTypeObj?.label || this.translate.instant(docType);
   }
 
   getDocTypeSeverity(docType: string | undefined): string {

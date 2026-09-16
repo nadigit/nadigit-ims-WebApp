@@ -36,7 +36,7 @@
 						(input)="onGlobalFilter($event)" class="w-full" />
 				</span>
 
-				<p-dropdown [(ngModel)]="selectedDocType" [options]="docTypes" optionLabel="label" optionValue="value"
+				<p-dropdown [(ngModel)]="selectedDocType" [options]="filterDocTypes" optionLabel="label" optionValue="value"
 					[showClear]="true" [placeholder]="'filter_by_document_type' | translate" appendTo="body"
 					styleClass="w-14rem" (onChange)="onFilterChange()">
 				</p-dropdown>
