@@ -146,6 +146,26 @@
     width: auto;
 }
 
+/* A segmented choice (SelectButton) in a form section takes the field's full width under its label,
+   one equal segment per option, like any other field. v17 did this for .p-fluid .p-buttonset; v18's
+   SelectButton is an inline host, so the label and the switch shared a line (the cash / bank transfer
+   direction). Scoped to form sections: filter bars keep their compact segments. */
+.ims-form-section__body .p-selectbutton {
+    display: flex;
+    width: 100%;
+}
+
+.ims-form-section__body .p-selectbutton > p-togglebutton,
+.ims-form-section__body .p-selectbutton > .p-togglebutton {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.ims-form-section__body .p-selectbutton .p-togglebutton {
+    width: 100%;
+    justify-content: center;
+}
+
 /* Dialogs carry class="p-fluid" for their form. v17 left that class on the <p-dialog> host, outside
    the footer; v18 moves it onto the dialog root, so the rule above reached Cancel and Save and split
    the footer into two half-width bars. Footer actions keep their own size. */
@@ -349,4 +369,296 @@
         padding: 0.75rem 1rem;
         font-weight: 700;
     }
+}
+
+/* ---------------------------------------------------------------------------
+   Tab bar structure, shipped statically
+
+   PrimeNG 18.0.2 registers TabMenu's stylesheet and Tabs/TabView's under the same name, "tabs", and
+   loads a name only once per page session. Whichever tab component renders first wins, and the
+   other's layout never arrives: after Users and Permissions (TabMenu), every tabbed page (user
+   details, settings, all details pages) drew its tabs as a vertical stack; the other way round,
+   Users and Permissions lost its bar. Both stylesheets are copied here, inside the primeng layer so
+   they rank exactly as PrimeNG's own injected CSS and the brand rules still override them.
+   Delete once PrimeNG gives the two components distinct style names.
+   --------------------------------------------------------------------------- */
+@layer primeng {
+    /* Tabs / TabView: PrimeNG 18.0.2 theme CSS, tokens as variables. */
+        .p-tabs {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .p-tablist {
+            display: flex;
+            position: relative;
+        }
+
+        .p-tabs-scrollable > .p-tablist {
+            overflow: hidden;
+        }
+
+        .p-tablist-viewport {
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            overscroll-behavior: contain auto;
+        }
+
+        .p-tablist-viewport::-webkit-scrollbar {
+            display: none;
+        }
+
+        .p-tablist-tab-list {
+            position: relative;
+            display: flex;
+            background: var(--p-tabs-tablist-background);
+            border-style: solid;
+            border-color: var(--p-tabs-tablist-border-color);
+            border-width: var(--p-tabs-tablist-border-width);
+        }
+
+        .p-tablist-content {
+            flex-grow: 1;
+        }
+
+        .p-tablist-nav-button {
+            all: unset;
+            position: absolute !important;
+            flex-shrink: 0;
+            top: 0;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--p-tabs-nav-button-background);
+            color: var(--p-tabs-nav-button-color);
+            width: var(--p-tabs-nav-button-width);
+            transition: color var(--p-tabs-transition-duration), outline-color var(--p-tabs-transition-duration), box-shadow var(--p-tabs-transition-duration);
+            box-shadow: var(--p-tabs-nav-button-shadow);
+            outline-color: transparent;
+            cursor: pointer;
+        }
+
+        .p-tablist-nav-button:focus-visible {
+            z-index: 1;
+            box-shadow: var(--p-tabs-nav-button-focus-ring-shadow);
+            outline: var(--p-tabs-nav-button-focus-ring-width) var(--p-tabs-nav-button-focus-ring-style) var(--p-tabs-nav-button-focus-ring-color);
+            outline-offset: var(--p-tabs-nav-button-focus-ring-offset);
+        }
+
+        .p-tablist-nav-button:hover {
+            color: var(--p-tabs-nav-button-hover-color);
+        }
+
+        .p-tablist-prev-button {
+            left: 0;
+        }
+
+        .p-tablist-next-button {
+            right: 0;
+        }
+
+        .p-tab {
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            border-style: solid;
+            white-space: nowrap;
+            gap: var(--p-tabs-tab-gap);
+            background: var(--p-tabs-tab-background);
+            border-width: var(--p-tabs-tab-border-width);
+            border-color: var(--p-tabs-tab-border-color);
+            color: var(--p-tabs-tab-color);
+            padding: var(--p-tabs-tab-padding);
+            font-weight: var(--p-tabs-tab-font-weight);
+            transition: background var(--p-tabs-transition-duration), border-color var(--p-tabs-transition-duration), color var(--p-tabs-transition-duration), outline-color var(--p-tabs-transition-duration), box-shadow var(--p-tabs-transition-duration);
+            margin: var(--p-tabs-tab-margin);
+            outline-color: transparent;
+        }
+
+        .p-tab:not(.p-disabled):focus-visible {
+            z-index: 1;
+            box-shadow: var(--p-tabs-tab-focus-ring-shadow);
+            outline: var(--p-tabs-tab-focus-ring-width) var(--p-tabs-tab-focus-ring-style) var(--p-tabs-tab-focus-ring-color);
+            outline-offset: var(--p-tabs-tab-focus-ring-offset);
+        }
+
+        .p-tab:not(.p-tab-active):not(.p-disabled):hover {
+            background: var(--p-tabs-tab-hover-background);
+            border-color: var(--p-tabs-tab-hover-border-color);
+            color: var(--p-tabs-tab-hover-color);
+        }
+
+        .p-tab-active {
+            background: var(--p-tabs-tab-active-background);
+            border-color: var(--p-tabs-tab-active-border-color);
+            color: var(--p-tabs-tab-active-color);
+        }
+
+        .p-tabpanels {
+            background: var(--p-tabs-tabpanel-background);
+            color: var(--p-tabs-tabpanel-color);
+            padding: var(--p-tabs-tabpanel-padding);
+            outline: 0 none;
+        }
+
+        .p-tabpanel:focus-visible {
+            box-shadow: var(--p-tabs-tabpanel-focus-ring-shadow);
+            outline: var(--p-tabs-tabpanel-focus-ring-width) var(--p-tabs-tabpanel-focus-ring-style) var(--p-tabs-tabpanel-focus-ring-color);
+            outline-offset: var(--p-tabs-tabpanel-focus-ring-offset);
+        }
+
+        .p-tablist-active-bar {
+            z-index: 1;
+            display: block;
+            position: absolute;
+            bottom: var(--p-tabs-active-bar-bottom);
+            height: var(--p-tabs-active-bar-height);
+            background: var(--p-tabs-active-bar-background);
+            transition: 250ms cubic-bezier(0.35, 0, 0.25, 1);
+        }
+
+    /* TabMenu: PrimeNG 18.0.2 theme CSS, tokens as variables. */
+        .p-tabmenu.p-component {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .p-tabmenu-nav-container {
+            display: flex;
+            position: relative;
+        }
+
+        .p-tabmenu.p-tabmenu-scrollable .p-tabmenu-nav-container {
+            overflow: hidden;
+        }
+
+        .p-tabmenu-nav-content {
+            flex-grow: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-behavior: smooth;
+            scrollbar-width: none;
+            overscroll-behavior: contain auto;
+        }
+
+        .p-tabmenu-nav {
+            padding: 0;
+            margin: 0;
+            list-style-type: none;
+            position: relative;
+            display: flex;
+            flex-wrap: nowrap;
+            background: var(--p-tabs-tablist-background);
+            border-style: solid;
+            border-color: var(--p-tabs-tablist-border-color);
+            border-width: var(--p-tabs-tablist-border-width);
+        }
+
+        .p-tabmenuitem {
+            display: flex;
+            flex-shrink: 0;
+            cursor: pointer;
+            position: relative;
+            border-style: solid;
+            background: var(--p-tabs-tab-background);
+            border-width: var(--p-tabs-tab-border-width);
+            border-color: var(--p-tabs-tab-border-color);
+            padding: var(--p-tabs-tab-padding);
+            transition: background var(--p-tabs-transition-duration), border-color var(--p-tabs-transition-duration), color var(--p-tabs-transition-duration), outline-color var(--p-tabs-transition-duration), box-shadow var(--p-tabs-transition-duration);
+            margin: var(--p-tabs-tab-margin);
+            outline-color: transparent;
+        }
+
+        .p-tabmenuitem > .p-menuitem-link {
+            white-space: nowrap;
+            user-select: none;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            overflow: hidden;
+            position: relative;
+            gap: var(--p-tabs-tab-gap);
+            color: var(--p-tabs-tab-color);
+            font-weight: var(--p-tabs-tab-font-weight);
+        }
+
+        .p-tabmenuitem.p-tabmenuitem-active .p-menuitem-link {
+            color: var(--p-tabs-tab-active-color);
+        }
+
+        .p-tabmenuitem:not(.p-disabled):focus-visible {
+            z-index: 1;
+            box-shadow: var(--p-tabs-tab-focus-ring-shadow);
+            outline: var(--p-tabs-tab-focus-ring-width) var(--p-tabs-tab-focus-ring-style) var(--p-tabs-tab-focus-ring-color);
+            outline-offset: var(--p-tabs-tab-focus-ring-offset);
+        }
+
+        .p-tabmenuitem:not(.p-tabmenuitem-active):not(.p-disabled):hover {
+            background: var(--p-tabs-tab-hover-background);
+            border-color: var(--p-tabs-tab-hover-border-color);
+            color: var(--p-tabs-tab-hover-color);
+        }
+
+        .p-tabmenuitem-active {
+            background: var(--p-tabs-tab-active-background);
+            border-color: var(--p-tabs-tab-active-border-color);
+            color: var(--p-tabs-tab-active-color);
+        }
+
+        .p-tabmenuitem-active-bar {
+            z-index: 1;
+            display: block;
+            position: absolute;
+            bottom: var(--p-tabs-active-bar-bottom);
+            height: var(--p-tabs-active-bar-height);
+            background: var(--p-tabs-active-bar-background);
+            transition: 250ms cubic-bezier(0.35, 0, 0.25, 1);
+        }
+
+        .p-tabmenu-nav-button {
+            all: unset;
+            position: absolute !important;
+            flex-shrink: 0;
+            top: 0;
+            z-index: 2;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--p-tabs-nav-button-background);
+            color: var(--p-tabs-nav-button-color);
+            width: var(--p-tabs-nav-button-width);
+            transition: color var(--p-tabs-transition-duration), outline-color var(--p-tabs-transition-duration), box-shadow var(--p-tabs-transition-duration);
+            box-shadow: var(--p-tabs-nav-button-shadow);
+            outline-color: transparent;
+            cursor: pointer;
+        }
+
+        .p-tabmenu-nav-button:focus-visible {
+            z-index: 1;
+            box-shadow: var(--p-tabs-nav-button-focus-ring-shadow);
+            outline: var(--p-tabs-nav-button-focus-ring-width) var(--p-tabs-nav-button-focus-ring-style) var(--p-tabs-nav-button-focus-ring-color);
+            outline-offset: var(--p-tabs-nav-button-focus-ring-offset);
+        }
+
+        .p-tabmenu-nav-button:hover {
+            color: var(--p-tabs-nav-button-hover-color);
+        }
+
+        .p-tabmenu-nav-prev-button {
+            left: 0;
+        }
+
+        .p-tabmenu-nav-next-button {
+            right: 0;
+        }
 }
