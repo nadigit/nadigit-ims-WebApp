@@ -25,6 +25,8 @@ import { LicenseCapabilitiesService } from 'src/app/services/license-capabilitie
 import { DashboardService, DashboardOverview } from 'src/app/services/dashboard.service';
 import { AnalysisService, ProfitAnalysis, ProfitPeriod } from 'src/app/services/analysis.service';
 import { AiIntegrationService, NadiPilotBriefingDTO } from 'src/app/services/ai-integration.service';
+import { NadiPilotBriefingStore } from 'src/app/services/nadipilot-briefing-store.service';
+import { OrganizationContextService } from 'src/app/services/organization-context.service';
 import {
   BRAND_COLORS,
   getBrandCssColors,
@@ -261,7 +263,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private licenseCapabilitiesService: LicenseCapabilitiesService,
     private dashboardService: DashboardService,
     private analysisService: AnalysisService,
-    private aiService: AiIntegrationService
+    private aiService: AiIntegrationService,
+    private briefingStore: NadiPilotBriefingStore,
+    private organizationContext: OrganizationContextService
   ) {
     this.subscription = this.layoutService.configUpdate$
       .pipe(debounceTime(25))
@@ -867,8 +871,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
    * Fetch the real NadiPilot briefing (admin only). Best-effort and non-blocking: the rule-based
    * {@link briefingSegments} render instantly, and if the AI is slow/unavailable/rate-limited we
    * simply keep that fallback — the dashboard never waits on the LLM.
+   *
+   * Coming back to the dashboard shows the briefing already received this session at once, without
+   * the "thinking" animation, and asks again only once it is older than five minutes, quietly in the
+   * background. {@code force} (the refresh button) always asks, and has the server recompute too.
    */
-  async loadAiBriefing(): Promise<void> {
+  async loadAiBriefing(options: { force?: boolean } = {}): Promise<void> {
     if (!this.isAdmin) {
       return;
     }
@@ -881,31 +889,71 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.cdr.markForCheck();
       return;
     }
-    this.aiBriefingLoading = true;
-    this.aiBriefingSettled = false;
-    this.startThinkingSteps();
-    this.cdr.markForCheck();
+
+    const key = this.briefingStoreKey();
+    const stored = options.force ? null : this.briefingStore.get(key);
+    if (stored) {
+      this.aiBriefing = stored.briefing;
+      this.aiBriefingLoading = false;
+      this.aiBriefingSettled = !!stored.briefing;
+      this.cdr.markForCheck();
+      if (this.briefingStore.isFresh(stored)) {
+        return;
+      }
+    }
+    // With a stored briefing on screen, an update arrives quietly; only a first load "thinks".
+    const quiet = !!stored;
+
+    if (!quiet) {
+      this.aiBriefingLoading = true;
+      this.aiBriefingSettled = false;
+      this.startThinkingSteps();
+      this.cdr.markForCheck();
+    }
     try {
+      let failed = false;
       const dto = await firstValueFrom(
-        this.aiService.getNadiPilotBriefing().pipe(
+        this.aiService.getNadiPilotBriefing({ refresh: !!options.force }).pipe(
           timeout(20000),
           catchError((error) => {
+            failed = true;
             console.warn('NadiPilot briefing unavailable — using rule-based summary.', error);
             return of(undefined as unknown as NadiPilotBriefingDTO);
           })
         )
       );
-      this.aiBriefing = dto && Array.isArray(dto.items) && dto.items.length ? dto : undefined;
+      if (!failed) {
+        const briefing = dto && Array.isArray(dto.items) && dto.items.length ? dto : undefined;
+        this.briefingStore.set(key, briefing);
+        this.aiBriefing = briefing;
+      } else if (!quiet) {
+        this.aiBriefing = undefined;
+      }
     } catch (error) {
       console.warn('NadiPilot briefing failed — using rule-based summary.', error);
     } finally {
-      this.aiBriefingLoading = false;
-      this.stopThinkingSteps();
+      if (!quiet) {
+        this.aiBriefingLoading = false;
+        this.stopThinkingSteps();
+      }
       // Only animate an actual arrival — a silent fallback to the rule-based clauses should look
       // like nothing happened, because for the user nothing did.
       this.aiBriefingSettled = !!this.aiBriefing;
       this.cdr.markForCheck();
     }
+  }
+
+  /** User, organisation and language: a stored briefing is only reused when all three still match. */
+  private briefingStoreKey(): string {
+    let user = '';
+    try {
+      user = this.keycloakService.getKeycloakInstance()?.subject ?? '';
+    } catch {
+      user = '';
+    }
+    const organization = this.organizationContext.getActiveOrganizationId() ?? '';
+    const language = this.translate.currentLang || this.translateService.getPreferredLanguage() || '';
+    return `${user}|${organization}|${language}`;
   }
 
   /**
@@ -2106,7 +2154,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       this.loadChartOnDemand(); // re-draw charts automatically (refresh reset chartsInitialized)
       if (this.isAdmin) {
         this.loadOverview();
-        this.loadAiBriefing();
+        this.loadAiBriefing({ force: true });
         this.loadAdminMetrics();
       } else if (this.isVendor) {
         this.loadVendorMetrics();

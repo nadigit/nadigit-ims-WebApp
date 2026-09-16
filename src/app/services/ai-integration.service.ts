@@ -492,7 +492,8 @@ export class AiIntegrationService {
     }
   }
 
-  getNadiPilotBriefing(params: { shopId?: number; warehouseId?: number } = {}): Observable<NadiPilotBriefingDTO> {
+  /** refresh=true asks the server to recompute instead of serving its short-lived cached briefing. */
+  getNadiPilotBriefing(params: { shopId?: number; warehouseId?: number; refresh?: boolean } = {}): Observable<NadiPilotBriefingDTO> {
     return from(this.getHeaders()).pipe(
       switchMap(h =>
         this.http.get<NadiPilotBriefingDTO>(this.copilotBriefingUrl, {
@@ -500,6 +501,7 @@ export class AiIntegrationService {
           params: {
             ...(params.shopId != null ? { shopId: String(params.shopId) } : {}),
             ...(params.warehouseId != null ? { warehouseId: String(params.warehouseId) } : {}),
+            ...(params.refresh ? { refresh: 'true' } : {}),
           },
         }),
       ),
