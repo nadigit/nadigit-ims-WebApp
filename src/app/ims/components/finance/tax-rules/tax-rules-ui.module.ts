@@ -21,10 +21,12 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 
 /** UI-only module so Tax Rules can be embedded (e.g. Settings) without registering lazy routes twice. */
 @NgModule({
     imports: [
+        ProductOptionComponent,
     PageNoteComponent,
         CommonModule,
         FormsModule,

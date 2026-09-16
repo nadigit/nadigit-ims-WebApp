@@ -20,10 +20,12 @@ import { TagModule } from 'primeng/tag';
 import { TooltipModule } from 'primeng/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { SharedModule } from 'src/app/shared/shared.module';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 
 /** UI-only module so the component can be embedded elsewhere without registering lazy routes twice. */
 @NgModule({
   imports: [
+        ProductOptionComponent,
     PageNoteComponent,
     CommonModule,
     FormsModule,

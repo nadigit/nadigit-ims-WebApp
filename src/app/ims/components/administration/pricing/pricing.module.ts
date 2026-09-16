@@ -21,10 +21,12 @@ import { TranslateModule } from '@ngx-translate/core';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TooltipModule } from 'primeng/tooltip';
 import { PageNoteComponent } from 'src/app/shared/page-note';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 
 @NgModule({
   declarations: [PricingComponent],
   imports: [
+        ProductOptionComponent,
     CommonModule,
     PageNoteComponent,
     FormsModule,

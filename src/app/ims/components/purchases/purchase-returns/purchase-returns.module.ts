@@ -38,9 +38,13 @@ import { SharedModule } from 'src/app/shared/shared.module';
 import { DividerModule } from 'primeng/divider';
 import { PurchaseReturnDetailsPageComponent } from './purchase-return-details-page/purchase-return-details-page.component';
 import { PurchaseReturnDeleteDialogComponent } from './purchase-return-delete-dialog/purchase-return-delete-dialog.component';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 
 @NgModule({
     imports: [
+        AutoCompleteModule,
+        ProductOptionComponent,
         CommonModule,
         DataViewModule,
         PurchaseReturnsRoutingModule,

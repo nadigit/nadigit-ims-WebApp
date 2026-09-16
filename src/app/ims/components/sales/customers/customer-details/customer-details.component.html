@@ -1074,13 +1074,10 @@
                                     [suggestions]="productSuggestions" [loading]="productSuggestionsLoading"
                                     (completeMethod)="searchProducts($event)"
                                     (onSelect)="onOverrideProductSelect($event.value)" field="name"
-                                    [forceSelection]="true" [dropdown]="true" appendTo="body"
-                                    placeholder="{{ 'search_products' | translate }}">
+                                    [forceSelection]="true" [dropdown]="true" styleClass="w-full ims-product-picker" appendTo="body"
+                                    placeholder="{{ 'search_products_placeholder' | translate }}">
                                     <ng-template let-product pTemplate="item">
-                                        <div class="flex flex-column">
-                                            <span class="font-medium">{{ product.name }}</span>
-                                            <small class="text-500">{{ product.reference }}</small>
-                                        </div>
+                                        <app-product-option [product]="product" [showStock]="false"></app-product-option>
                                     </ng-template>
                                 </p-autoComplete>
                                 <small class="p-error" *ngIf="overrideSubmitted && (!overrideForm || !overrideForm.productId)">

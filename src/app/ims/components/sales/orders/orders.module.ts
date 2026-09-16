@@ -49,8 +49,10 @@ import { StepsModule } from 'primeng/steps';
 import { InventorySharedModule } from '../../inventory/shared/inventory-shared.module';
 import { FormAddButtonComponent } from 'src/app/shared/form-add-button';
 import { PageNoteComponent } from 'src/app/shared/page-note';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 @NgModule({
     imports: [
+        ProductOptionComponent,
         CommonModule,
         DataViewModule,
         OrdersRoutingModule,

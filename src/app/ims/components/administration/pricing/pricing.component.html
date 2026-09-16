@@ -319,22 +319,11 @@
                 [forceSelection]="true"
                 [dropdown]="true"
                 appendTo="body"
-                styleClass="w-full"
+                styleClass="w-full ims-product-picker"
                 [ngClass]="{ 'ng-invalid ng-dirty': itemSubmitted && !itemForm.productId }"
-                placeholder="{{ 'search_products' | translate }}">
-                <ng-template pTemplate="selectedItem" let-product>
-                  <span *ngIf="product">{{ autocompleteProductLabel(product) }}</span>
-                </ng-template>
+                placeholder="{{ 'search_products_placeholder' | translate }}">
                 <ng-template let-product pTemplate="item">
-                  <div class="flex flex-column">
-                    <span class="font-medium">{{ product.name }}</span>
-                    <small class="text-500">
-                      {{ product.reference }}
-                      <ng-container *ngIf="product.sellingPrice !== undefined && product.sellingPrice !== null">
-                        &nbsp;|&nbsp;{{ 'selling_price' | translate }}: {{ formatUnitPrice(product.sellingPrice) }}
-                      </ng-container>
-                    </small>
-                  </div>
+                    <app-product-option [product]="product" [showStock]="false"></app-product-option>
                 </ng-template>
               </p-autoComplete>
               <small class="p-error" *ngIf="itemSubmitted && !itemForm.productId">

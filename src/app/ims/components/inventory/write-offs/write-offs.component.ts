@@ -65,6 +65,7 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
   // Dropdowns
   warehouses: any[] = [];
   products: any[] = [];
+  productSuggestions: Product[] = [];
   statusOptions: any[] = [];
   conditionOptions: any[] = [];
   sourceTypeOptions: any[] = [];
@@ -294,6 +295,15 @@ export class WriteOffsComponent implements OnInit, OnDestroy {
     } catch (error) {
       console.error('Error loading warehouses:', error);
     }
+  }
+
+  /** Product filter: the loaded products, searched by name or reference. */
+  filterProductSuggestions(event: { query?: string }): void {
+    const q = (event?.query || '').trim().toLowerCase();
+    const all: Product[] = this.products.map((o: any) => o.product).filter(Boolean);
+    const matches = !q ? all : all.filter((p: Product) =>
+      (p.name || '').toLowerCase().includes(q) || (p.reference || '').toLowerCase().includes(q));
+    this.productSuggestions = matches.slice(0, 50);
   }
 
   async loadProducts() {

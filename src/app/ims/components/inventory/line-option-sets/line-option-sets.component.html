@@ -207,12 +207,9 @@
                 <p-autoComplete inputId="loProduct" [(ngModel)]="selectedProduct" [suggestions]="productSuggestions"
                   [loading]="productSuggestionsLoading" (completeMethod)="searchProducts($event)"
                   field="name" [forceSelection]="true" [dropdown]="true" [showClear]="true" appendTo="body"
-                  styleClass="w-full" [placeholder]="'search_products' | translate">
+                  styleClass="w-full ims-product-picker" [placeholder]="'search_products_placeholder' | translate">
                   <ng-template let-product pTemplate="item">
-                    <div class="flex flex-column">
-                      <span class="font-medium">{{ product.name }}</span>
-                      <small *ngIf="product.reference"><span class="reference-badge">{{ product.reference }}</span></small>
-                    </div>
+                      <app-product-option [product]="product" [showStock]="false"></app-product-option>
                   </ng-template>
                 </p-autoComplete>
               </div>

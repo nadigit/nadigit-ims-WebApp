@@ -171,11 +171,8 @@ export class StockMovementsComponent implements OnInit, OnDestroy {
       this.productService.searchProductsForFilter(event.query).subscribe({
         next: (response: any) => {
           const list: any[] = Array.isArray(response) ? response : (response?.page?.content ?? response?.content ?? []);
-          this.productSuggestions = list.map((p: Product) => ({
-            label: `${p.reference || ''} - ${p.name || ''}`,
-            value: p.productId,
-            product: p
-          }));
+          // The products themselves: the shared picker row renders them.
+          this.productSuggestions = list;
         },
         error: () => { this.productSuggestions = []; }
       });

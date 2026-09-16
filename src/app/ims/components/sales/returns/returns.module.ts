@@ -38,10 +38,14 @@ import { ReturnDetailsPageComponent } from './return-details-page/return-details
 import { OrderReturnDeleteDialogComponent } from './order-return-delete-dialog/order-return-delete-dialog.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { DividerModule } from 'primeng/divider';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 
 
 @NgModule({
     imports: [
+        AutoCompleteModule,
+        ProductOptionComponent,
         CommonModule,
         DataViewModule,
         ReturnsRoutingModule,

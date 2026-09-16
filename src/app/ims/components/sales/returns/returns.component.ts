@@ -150,6 +150,7 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
   items: MenuItem[] | undefined;
 
   sourceProducts: Product[] = [];
+  returnProductSuggestions: Product[] = [];
 
   targetProducts: Product[] = [];
 
@@ -452,6 +453,19 @@ export class ReturnsComponent implements OnInit, OnChanges, OnDestroy {
     product.orderItemPricePerUnit = orderItem.pricePerUnit;
     return product;
   }
+
+  /** Return line picker: the source document's products, searched by name or reference. */
+
+  filterReturnProducts(event: { query?: string }): void {
+
+    const q = (event?.query || '').trim().toLowerCase();
+
+    this.returnProductSuggestions = !q ? [...this.sourceProducts] : this.sourceProducts.filter((p: Product) =>
+
+      (p.name || '').toLowerCase().includes(q) || (p.reference || '').toLowerCase().includes(q));
+
+  }
+
 
   onReturnProductSelect(event: { value?: Product | null }): void {
     const product = event?.value;

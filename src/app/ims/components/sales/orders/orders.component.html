@@ -222,7 +222,7 @@
 												</label>
 												<app-form-add-button *ngIf="canAddProduct" [label]="'add_new_product' | translate" (add)="openNewProduct()"></app-form-add-button>
 											</div>
-											<p-autoComplete inputId="productSearch" class="w-full" styleClass="w-full"
+											<p-autoComplete inputId="productSearch" class="w-full" styleClass="w-full ims-product-picker"
 												[(ngModel)]="selectedProduct" [suggestions]="productSuggestions"
 												[loading]="productSuggestionsLoading"
 												(completeMethod)="filterProducts($event)" [minLength]="1" [field]="'name'"
@@ -242,36 +242,7 @@
 
 										<!-- Dropdown Items -->
 										<ng-template let-product pTemplate="item">
-											<div class="product-suggestion-item">
-												<img [src]="product | productImage"
-													[alt]="product.name" class="product-suggestion-image" />
-												<div class="product-suggestion-details">
-													<div class="flex align-items-center gap-2">
-														<span>{{ product.name }}</span>
-														<p-tag [value]="getProductBadgeKey(product) | translate"
-															[severity]="getProductBadgeSeverity(product)"
-															[icon]="getProductBadgeIcon(product)"
-															styleClass="text-xs">
-														</p-tag>
-													</div>
-													<div>{{ product.reference }}</div>
-													<small>{{ product.category?.categoryName }} • {{ currency }} {{
-														product.sellingPrice }}</small>
-													<small *ngIf="activityProfileService.isFashionProfile && getProductVariantSummary(product)" class="block mt-1 text-600">
-														{{ 'variant' | translate }}: <strong>{{ getProductVariantSummary(product) }}</strong>
-													</small>
-													<small *ngIf="isProduct(product)" class="block mt-1">
-														<span>{{ 'stock' | translate }}: {{ getAvailableQuantity(product) }}</span>
-														<span *ngIf="hasWriteOffs(product)" class="text-orange-600 ml-2">
-															<i class="pi pi-exclamation-triangle text-xs"></i>
-															{{ getWriteOffQuantity(product) }} {{ 'written_off' | translate }}
-														</span>
-													</small>
-													<small *ngIf="isService(product) && product.serviceProvider" class="block mt-1">
-														{{ 'service_provider' | translate }}: {{ product.serviceProvider }}
-													</small>
-												</div>
-											</div>
+										    <app-product-option [product]="product"></app-product-option>
 										</ng-template>
 											</p-autoComplete>
 										</div>

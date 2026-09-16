@@ -658,7 +658,7 @@
                             </label>
                             <app-form-add-button *ngIf="canAddProduct" [label]="'add_new_product' | translate" (add)="openNewProduct()"></app-form-add-button>
                         </div>
-                        <p-autoComplete inputId="purchaseProductSearch" class="w-full" styleClass="w-full"
+                        <p-autoComplete inputId="purchaseProductSearch" class="w-full" styleClass="w-full ims-product-picker"
                             [(ngModel)]="purchasePickerSelectedProduct"
                             [suggestions]="purchasePickerProductSuggestions"
                             [loading]="purchasePickerProductSuggestionsLoading"
@@ -676,22 +676,7 @@
                                 </small>
                             </ng-template>
                             <ng-template let-product pTemplate="item">
-                                <div class="product-suggestion-item">
-                                    <img [src]="product | productImage" [alt]="product.name" class="product-suggestion-image" />
-                                    <div class="product-suggestion-details">
-                                        <div class="flex align-items-center gap-2 flex-wrap">
-                                            <span>{{ product.name }}</span>
-                                            <p-tag [value]="isService(product) ? ('product_type_service' | translate) : ('product_type_product' | translate)"
-                                                [severity]="isService(product) ? 'purple' : 'info'"
-                                                [icon]="isService(product) ? 'pi pi-cog' : 'pi pi-box'" styleClass="text-xs"></p-tag>
-                                        </div>
-                                        <div>{{ product.reference }}</div>
-                                        <small>{{ product.category?.categoryName }}</small>
-                                        <small *ngIf="activityProfileService.isFashionProfile && getProductVariantSummary(product)" class="block mt-1 text-600">
-                                            {{ 'variant' | translate }}: <strong>{{ getProductVariantSummary(product) }}</strong>
-                                        </small>
-                                    </div>
-                                </div>
+                                <app-product-option [product]="product" price="buying"></app-product-option>
                             </ng-template>
                         </p-autoComplete>
                     </div>

@@ -527,27 +527,10 @@
                                             (onFocus)="filterProductsForWarehouse({query: ''}, i)"
                                             [forceSelection]="true"
                                             appendTo="body"
-                                            styleClass="w-full transfer-product-autocomplete"
-                                            panelStyleClass="transfer-product-panel"
-                                            [panelStyle]="{ 'min-width': '22rem', 'max-width': '36rem' }"
+                                            styleClass="w-full ims-product-picker"
                                             [ngClass]="{'ng-invalid ng-dirty' : submitted && !item.product}">
-                                            <ng-template let-product pTemplate="selectedItem">
-                                                <span *ngIf="product" class="transfer-product-selected">
-                                                    <span class="transfer-product-selected__name">{{ product.name }}</span>
-                                                    <span class="transfer-product-selected__ref" *ngIf="product.reference">{{ product.reference }}</span>
-                                                </span>
-                                            </ng-template>
                                             <ng-template let-product pTemplate="item">
-                                                <div class="transfer-product-option">
-                                                    <img [src]="product | productImage" [alt]="product.name" class="transfer-product-option__image" />
-                                                    <div class="transfer-product-option__body">
-                                                        <span class="transfer-product-option__name">{{ product.name }}</span>
-                                                        <span class="transfer-product-option__ref" *ngIf="product.reference">{{ product.reference }}</span>
-                                                    </div>
-                                                    <span class="transfer-product-option__stock">
-                                                        {{ formatDisplayQuantity(product, getAvailableDisplayStock(product)) }}<ng-container *ngIf="getItemQuantityUnit(product, getAvailableDisplayStock(product))"> {{ getItemQuantityUnit(product, getAvailableDisplayStock(product)) | translate }}</ng-container>
-                                                    </span>
-                                                </div>
+                                                <app-product-option [product]="product" [stock]="formatDisplayQuantity(product, getAvailableDisplayStock(product))"></app-product-option>
                                             </ng-template>
                                         </p-autoComplete>
                                         <small class="p-error" *ngIf="submitted && !item.product">

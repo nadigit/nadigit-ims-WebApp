@@ -1,0 +1,84 @@
+/* =====================================================
+   Product picker — one look wherever a product is chosen
+
+   The field is a p-autoComplete with styleClass="ims-product-picker" (search as you type, dropdown
+   button, forced selection); each suggestion is <app-product-option>. The orders form's picker is
+   the reference these rules were lifted from, so every other screen now reads like it.
+   ===================================================== */
+
+.ims-product-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  min-width: 0;
+  color: var(--text-color);
+}
+
+.ims-product-option__image {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  object-fit: cover;
+  border-radius: var(--brand-radius-field, 8px);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-ground);
+}
+
+.ims-product-option__details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.ims-product-option__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ims-product-option__name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.ims-product-option__reference {
+  font-size: 0.875rem;
+  color: var(--text-color);
+}
+
+.ims-product-option__meta,
+.ims-product-option__line {
+  display: block;
+  color: var(--text-color-secondary);
+}
+
+.ims-product-option__writeoff {
+  margin-inline-start: 0.5rem;
+  color: var(--orange-600, #d46213);
+}
+
+/* The field: always as wide as its container, like the orders form's. */
+.p-autocomplete.ims-product-picker {
+  width: 100%;
+
+  .p-autocomplete-input {
+    width: 100%;
+  }
+}
+
+/* The list: options separated like the orders picker, highlighted with the brand tint. */
+.p-autocomplete-overlay:has(.ims-product-option) {
+  .p-autocomplete-option {
+    padding: 0.5rem 0.75rem;
+    white-space: normal;
+    border-bottom: 1px solid var(--surface-border);
+  }
+
+  .p-autocomplete-option:last-child {
+    border-bottom: none;
+  }
+}

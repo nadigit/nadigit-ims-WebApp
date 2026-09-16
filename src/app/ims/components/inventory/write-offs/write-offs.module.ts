@@ -32,8 +32,10 @@ import { AutoCompleteModule } from 'primeng/autocomplete';
 import { MessageModule } from 'primeng/message';
 import { ReportingService } from 'src/app/utils/reporting.service';
 import { PageNoteComponent } from 'src/app/shared/page-note';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 @NgModule({
     imports: [
+        ProductOptionComponent,
         CommonModule,
         WriteOffsRoutingModule,
         TableModule,

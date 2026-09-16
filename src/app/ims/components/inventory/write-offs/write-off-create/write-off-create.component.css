@@ -13,66 +13,6 @@
     margin: 0;
 }
 
-.write-off-product-selected {
-    display: flex;
-    align-items: center;
-    gap: 0.375rem;
-    min-width: 0;
-    overflow: hidden;
-}
-
-.write-off-product-selected__name {
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.write-off-product-selected__ref {
-    flex-shrink: 0;
-    font-size: 0.75rem;
-    color: var(--text-color-secondary);
-}
-
-.write-off-product-option {
-    display: flex;
-    align-items: center;
-    gap: 0.625rem;
-    padding: 0.375rem 0.125rem;
-    min-width: 0;
-}
-
-.write-off-product-option__image {
-    width: 36px;
-    height: 36px;
-    object-fit: cover;
-    border-radius: var(--brand-radius-field, 8px);
-    border: 1px solid var(--surface-border);
-    flex-shrink: 0;
-}
-
-.write-off-product-option__body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-}
-
-.write-off-product-option__name {
-    font-weight: 600;
-    font-size: 0.875rem;
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.write-off-product-option__ref {
-    font-size: 0.75rem;
-    color: var(--text-color-secondary);
-}
-
 .write-off-summary-section {
     position: sticky;
     top: 0;
@@ -150,28 +90,6 @@
     border-radius: var(--brand-radius-field, 8px);
     background: rgba(234, 88, 12, 0.06);
     border: 1px solid rgba(234, 88, 12, 0.18);
-}
-
-:host ::ng-deep .write-off-dialog .write-off-product-autocomplete.p-autocomplete {
-    width: 100%;
-}
-
-:host ::ng-deep .write-off-dialog .write-off-product-autocomplete .p-autocomplete-input {
-    width: 100%;
-}
-
-:host ::ng-deep .write-off-product-panel .p-autocomplete-list {
-    padding: 0.35rem;
-}
-
-:host ::ng-deep .write-off-product-panel .p-autocomplete-option {
-    border-radius: var(--brand-radius-field, 8px);
-    margin-bottom: 0.125rem;
-}
-
-:host ::ng-deep .write-off-product-panel .p-autocomplete-option.p-focus {
-    background: rgba(30, 94, 255, 0.08);
-    color: var(--text-color);
 }
 
 @media (max-width: 991px) {

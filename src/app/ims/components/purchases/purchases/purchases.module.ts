@@ -41,9 +41,11 @@ import { StepsModule } from 'primeng/steps';
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { FormAddButtonComponent } from 'src/app/shared/form-add-button';
 import { PageNoteComponent } from 'src/app/shared/page-note';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 
 @NgModule({
     imports: [
+        ProductOptionComponent,
         CommonModule,
         PurchasesRoutingModule,
         TableModule,

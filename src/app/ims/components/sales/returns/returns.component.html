@@ -490,48 +490,22 @@
 											<label for="returnProductSelect" class="ims-form-label">
 												{{ 'order_available_products' | translate }}
 											</label>
-											<p-dropdown inputId="returnProductSelect" [(ngModel)]="selectedReturnProduct"
-												[options]="sourceProducts" optionLabel="name" dataKey="productId"
-												placeholder="{{ 'select_product' | translate }}" [filter]="true"
-												filterBy="name,reference" appendTo="body" styleClass="w-full"
-												[showClear]="true" [autoDisplayFirst]="false" [resetFilterOnHide]="false"
+											<p-autoComplete inputId="returnProductSelect" [(ngModel)]="selectedReturnProduct"
+												[suggestions]="returnProductSuggestions" (completeMethod)="filterReturnProducts($event)"
+												optionLabel="name" dataKey="productId" [dropdown]="true" [forceSelection]="true" [minLength]="0"
+												placeholder="{{ 'search_products_placeholder' | translate }}" appendTo="body"
+												styleClass="w-full ims-product-picker"
 												[disabled]="sourceProducts.length === 0"
-												(onChange)="onReturnProductSelect($event)">
-												<ng-template pTemplate="selectedItem">
-													<span *ngIf="selectedReturnProduct" class="return-product-option__selected">
-														<span class="return-product-option__selected-name">{{ selectedReturnProduct.name }}</span>
-														<span class="return-product-option__qty">
-															{{ 'quantity_ordered' | translate }}:
-															{{ formatReturnOrderedQuantity(selectedReturnProduct) }}
-															{{ getMeasureUnit(selectedReturnProduct) | translate }}
-														</span>
-													</span>
-												</ng-template>
+												(onSelect)="onReturnProductSelect($event)">
 												<ng-template let-product pTemplate="item">
-													<div class="return-product-option">
-														<img [src]="product | productImage" [alt]="product.name"
-															class="return-product-option__image" />
-														<div class="return-product-option__body">
-															<span class="return-product-option__name">{{ product.name }}</span>
-															<small class="return-product-option__meta">
-																{{ product.reference }} • {{ product.category?.categoryName }}
-															</small>
-															<small class="return-product-option__qty">
-																{{ 'quantity_ordered' | translate }}:
-																{{ formatReturnOrderedQuantity(product) }}
-																{{ getMeasureUnit(product) | translate }}
-																<span class="return-product-option__qty-sep">•</span>
-																{{ 'remaining_quantity' | translate }}:
-																{{ formatLineQuantity(product, getReturnMaxQuantity(product)) }}
-																{{ getMeasureUnit(product) | translate }}
-															</small>
-														</div>
-														<span class="return-product-option__price">
-															{{ currency }} {{ product.orderItemPricePerUnit | number:'1.2-2' }}
-														</span>
-													</div>
+													<app-product-option [product]="product" [showStock]="false" [amount]="product.orderItemPricePerUnit">
+														<small class="ims-product-option__line">
+															{{ 'quantity_ordered' | translate }}: {{ formatReturnOrderedQuantity(product) }} {{ getMeasureUnit(product) | translate }}
+															• {{ 'remaining_quantity' | translate }}: {{ formatLineQuantity(product, getReturnMaxQuantity(product)) }} {{ getMeasureUnit(product) | translate }}
+														</small>
+													</app-product-option>
 												</ng-template>
-											</p-dropdown>
+											</p-autoComplete>
 										</div>
 									</div>
 

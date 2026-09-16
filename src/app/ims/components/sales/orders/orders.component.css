@@ -117,26 +117,10 @@
   margin-bottom: 0.35rem;
 }
 
-
 /* Make calendar icon larger */
 .p-datepicker .pi-calendar {
   font-size: 1.25rem;
   color: var(--primary-color);
-}
-
-.product-suggestion-item {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem;
-  color: var(--text-color);
-}
-
-.product-suggestion-image {
-  width: 40px;
-  height: 40px;
-  object-fit: cover;
-  margin-right: 0.5rem;
-  border-radius: var(--border-radius);
 }
 
 .selected-products-card {

@@ -35,10 +35,12 @@ import { CreditManagementModule } from '../../finance/credit-management/credit-m
 import { AutoCompleteModule } from 'primeng/autocomplete';
 import { CalendarModule } from 'primeng/calendar';
 import { InputSwitchModule } from 'primeng/inputswitch';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 
 
 @NgModule({
     imports: [
+        ProductOptionComponent,
     FeatureLockedComponent,
         CommonModule,
         CustomersRoutingModule,

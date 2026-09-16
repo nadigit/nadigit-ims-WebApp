@@ -32,14 +32,17 @@
                     (completeMethod)="searchProducts($event)"
                     (onSelect)="onFilterChange()"
                     (onClear)="selectedProduct = null; onFilterChange()"
-                    field="label"
+                    optionLabel="name"
                     [showClear]="true"
                     [dropdown]="true"
+                    [forceSelection]="true"
                     appendTo="body"
-                    styleClass="filter-autocomplete"
-                    inputStyleClass="w-full"
+                    styleClass="w-20rem ims-product-picker"
                     [placeholder]="'filter_by_product' | translate"
                     [minLength]="1">
+                    <ng-template let-product pTemplate="item">
+                        <app-product-option [product]="product"></app-product-option>
+                    </ng-template>
                 </p-autoComplete>
 
                 <!-- Warehouse Filter -->

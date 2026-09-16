@@ -73,27 +73,13 @@
                                         optionLabel="name"
                                         dataKey="productId"
                                         appendTo="body"
-                                        styleClass="w-full write-off-product-autocomplete"
-                                        panelStyleClass="write-off-product-panel"
-                                        [panelStyle]="{ 'min-width': '22rem', 'max-width': '36rem' }"
+                                        styleClass="w-full ims-product-picker"
                                         [class.ng-invalid]="isFieldInvalid('productId')"
                                         (onSelect)="onProductChange($event)"
                                         (onClear)="onProductChange()"
                                         (onFocus)="onProductInputFocus()">
-                                        <ng-template pTemplate="selectedItem" let-product>
-                                            <span *ngIf="product?.name" class="write-off-product-selected">
-                                                <span class="write-off-product-selected__name">{{ product.name }}</span>
-                                                <span class="write-off-product-selected__ref" *ngIf="product.reference">{{ product.reference }}</span>
-                                            </span>
-                                        </ng-template>
                                         <ng-template let-product pTemplate="item">
-                                            <div class="write-off-product-option">
-                                                <img [src]="product | productImage" [alt]="product.name" class="write-off-product-option__image" />
-                                                <div class="write-off-product-option__body">
-                                                    <span class="write-off-product-option__name">{{ product.name }}</span>
-                                                    <span class="write-off-product-option__ref" *ngIf="product.reference">{{ product.reference }}</span>
-                                                </div>
-                                            </div>
+                                            <app-product-option [product]="product"></app-product-option>
                                         </ng-template>
                                     </p-autoComplete>
                                     <small class="p-error" *ngIf="isFieldInvalid('productId')">

@@ -30,18 +30,24 @@
             <!-- Filters Bar -->
             <div class="filter-bar flex gap-3 mb-4 flex-wrap align-items-center p-3 surface-ground border-round">
                 <!-- Product Filter -->
-                <p-dropdown 
-                    [(ngModel)]="selectedProduct" 
-                    [options]="products" 
-                    optionLabel="label" 
-                    [filter]="true" 
-                    filterBy="label"
+                <p-autoComplete
+                    [(ngModel)]="selectedProduct"
+                    [suggestions]="productSuggestions"
+                    (completeMethod)="filterProductSuggestions($event)"
+                    (onSelect)="onFilterChange()"
+                    (onClear)="selectedProduct = null; onFilterChange()"
+                    optionLabel="name"
                     [showClear]="true"
-                    [placeholder]="'filter_by_product' | translate"
+                    [dropdown]="true"
+                    [forceSelection]="true"
+                    [minLength]="0"
                     appendTo="body"
-                    styleClass="w-14rem"
-                    (onChange)="onFilterChange()">
-                </p-dropdown>
+                    styleClass="w-20rem ims-product-picker"
+                    [placeholder]="'filter_by_product' | translate">
+                    <ng-template let-product pTemplate="item">
+                        <app-product-option [product]="product"></app-product-option>
+                    </ng-template>
+                </p-autoComplete>
 
                 <!-- Warehouse Filter -->
                 <p-dropdown 

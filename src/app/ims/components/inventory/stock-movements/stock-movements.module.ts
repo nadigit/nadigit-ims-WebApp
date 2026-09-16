@@ -19,8 +19,10 @@ import { TagModule } from 'primeng/tag';
 import { CardModule } from 'primeng/card';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { ReportingService } from 'src/app/utils/reporting.service';
+import { ProductOptionComponent } from 'src/app/shared/product-option';
 @NgModule({
     imports: [
+        ProductOptionComponent,
         CommonModule,
         StockMovementsRoutingModule,
         TableModule,
