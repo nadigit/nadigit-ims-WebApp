@@ -184,6 +184,13 @@
     width: 100%;
 }
 
+/* Not the paginator's page-size picker: a table inside a .p-fluid container (the items page) had it
+   stretched onto a row of its own under the page links. */
+.p-fluid .p-paginator :is(.p-select, .p-dropdown, .p-inputnumber) {
+    display: inline-flex;
+    width: auto;
+}
+
 .p-fluid .p-datepicker .p-inputtext,
 .p-fluid .p-inputnumber .p-inputnumber-input,
 .p-fluid .p-autocomplete .p-autocomplete-input,
