@@ -2560,17 +2560,21 @@ body,
     gap: 0.25rem;
   }
 
+  // The item, not the link, overlaps the nav's 2px baseline: PrimeNG 18 wraps the list in a scroll
+  // container (overflow-x: auto) that clipped a link reaching below its item, so the active tab
+  // had no underline at all.
   .p-tabmenu-nav .p-tabmenuitem {
-    margin: 0 !important;
+    margin: 0 0 -2px !important;
   }
 
   .p-tabmenu-nav .p-tabmenuitem :is(.p-menuitem-link, .p-menu-item-link, .p-tieredmenu-item-link, .p-contextmenu-item-link) {
     background: transparent !important;
     border: none !important;
-    border-bottom: 3px solid transparent !important;
+    // 2px, flush on the nav's 2px baseline: the same underline as the Tabs bars (Pricing, Settings).
+    border-bottom: 2px solid transparent !important;
     border-radius: 0 !important;
     padding: 0.875rem 1.25rem !important;
-    margin: 0 0 -2px !important;
+    margin: 0 !important;
     font-weight: 600;
     font-size: 0.9375rem;
     color: var(--text-color-secondary) !important;

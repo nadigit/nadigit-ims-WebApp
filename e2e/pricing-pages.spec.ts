@@ -58,3 +58,25 @@ test('pricing header matches the other list pages and both tables use the standa
   await expect(page.locator('.p-datatable:visible').first()).toBeVisible();
   await expectStandardPaginator(page, '.p-tabpanels .p-datatable:visible');
 });
+
+// Tab bars look the same whether a page uses Tabs (Pricing) or TabMenu (Users and permissions): same
+// size and underline, and the active underline is visible, not clipped by TabMenu's scroll container.
+test('users and permissions tabs match the pricing tabs', async ({ page }) => {
+  const measure = async (path: string, active: string, container: string) => {
+    await visit(page, path);
+    const tab = page.locator(active).first();
+    await expect(tab).toBeVisible();
+    const style = await tab.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { height: cs.height, font: `${cs.fontSize} ${cs.fontWeight}`, padding: cs.padding, underline: `${cs.borderBottomWidth} ${cs.borderBottomColor}` };
+    });
+    // The underline is the tab's bottom border; it gets clipped when the tab reaches below the item
+    // that holds it (TabMenu's link inside its <li>, inside a scroll container).
+    const [t, c] = [await tab.boundingBox(), await page.locator(container).first().boundingBox()];
+    return { style, clipped: !!t && !!c && t.y + t.height > c.y + c.height + 0.5 };
+  };
+  const users = await measure('administration/users', '.p-tabmenuitem-active .p-menuitem-link', '.p-tabmenuitem-active');
+  const pricing = await measure('inventory/pricing', '.p-tablist-tab-list .p-tab.p-tab-active', '.p-tablist-tab-list');
+  expect(users.style).toEqual(pricing.style);
+  expect(users.clipped).toBe(false);
+});
