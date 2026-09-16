@@ -17,7 +17,7 @@ import { WarehouseService } from 'src/app/services/warehouse.service';
 import { Warehouse } from 'src/app/models/warehouse';
 import { Shop } from 'src/app/models/shop';
 import { PermissionService } from 'src/app/services/permission.service';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { LicenseCapabilitiesService } from 'src/app/services/license-capabilities.service';
 import { TablePageSizeService } from 'src/app/services/table-page-size.service';
 import { TablePageSizeKeys } from 'src/app/utils/table-page-size.storage';
@@ -133,6 +133,7 @@ export class UsersComponent implements OnInit {
     private cdr: ChangeDetectorRef,
     private permissionService: PermissionService,
     private router: Router,
+    private route: ActivatedRoute,
     private licenseCapabilitiesService: LicenseCapabilitiesService,
     public pageSizeService: TablePageSizeService,
     private layoutService: LayoutService,
@@ -214,6 +215,49 @@ export class UsersComponent implements OnInit {
       this.initializePickList();
   
       this.isLoading = false;
+      await this.openEditFromLink();
+  }
+
+  /**
+   * The user details page edits through this page's form, the only full user form in the console:
+   * it links here with ?edit=<id>, and closing or saving the form returns to that user's details.
+   */
+  private returnToUserId: string | null = null;
+  /** The save the dialog fired, so returning to the details page shows the saved user, not the old one. */
+  private pendingUserSave: Promise<void> | null = null;
+
+  private async openEditFromLink(): Promise<void> {
+    const id = this.route.snapshot.queryParamMap.get('edit');
+    if (!id) {
+      return;
+    }
+    await this.onGetAllUsers();
+    let target: User | undefined = this.users?.find((u: any) => String(u.id) === id);
+    if (!target) {
+      try {
+        target = (await firstValueFrom(this.authService.getUser(id))) as User;
+      } catch {
+        target = undefined;
+      }
+    }
+    if (!target) {
+      return;
+    }
+    this.returnToUserId = id;
+    await this.editUser(target);
+  }
+
+  async onUserDialogHide(): Promise<void> {
+    const id = this.returnToUserId;
+    if (!id) {
+      return;
+    }
+    this.returnToUserId = null;
+    if (this.pendingUserSave) {
+      await this.pendingUserSave.catch(() => undefined);
+      this.pendingUserSave = null;
+    }
+    this.router.navigate(['/administration/users', id]);
   }
 
   onTablePage(event: any): void {
@@ -278,41 +322,33 @@ export class UsersComponent implements OnInit {
   }
 
   async onGetAllWarehouses() {
-    await this.warehouseService.getWarehouses()
-      .subscribe({
-        next: (response: any) => {
-          this.warehouses = response;
-          console.log(this.warehouses);
-        },
-        error: (err: any) => {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_warehouses'),
-            life: 3000
-          });
-        }
-      })
+    // Awaited for real, so the user form can pick the user's warehouse from the list once it is loaded.
+    try {
+      this.warehouses = (await firstValueFrom(this.warehouseService.getWarehouses())) as any;
+    } catch (err) {
+      console.log(err);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_warehouses'),
+        life: 3000
+      });
+    }
   }
 
   async onGetAllShops() {
-    await this.shopService.getShops()
-      .subscribe({
-        next: (response: any) => {
-          this.shops = response;
-          console.log(this.shops);
-        },
-        error: (err: any) => {
-          console.log(err);
-          this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_getting_shops'),
-            life: 3000
-          });
-        }
-      })
+    // Awaited for real, so the user form can pick the user's shop from the list once it is loaded.
+    try {
+      this.shops = (await firstValueFrom(this.shopService.getShops())) as any;
+    } catch (err) {
+      console.log(err);
+      this.messageService.add({
+        severity: 'error',
+        summary: this.translate.instant('error'),
+        detail: this.translate.instant('error_while_getting_shops'),
+        life: 3000
+      });
+    }
   }
 
   onActiveItemChange(event: MenuItem) {
@@ -337,37 +373,46 @@ export class UsersComponent implements OnInit {
 
   async editUser(user: User) {
     this.user = { ...user };
-    const warehouseId = Number(user.attributes?.warehouse);
-    const shopId = Number(user.attributes?.shop);
-    
-    // Load POS PIN from user attributes
     this.posPin = user.attributes?.posPin || '';
-    try {
-        // Use forkJoin to combine both observables
-        const result = await forkJoin({
-            warehouse: this.warehouseService.getWarehouse(warehouseId),
-            shop: this.shopService.getShop(shopId)
-        }).toPromise();
 
-        this.selectedWarehouse = result.warehouse;
-        this.selectedShop = result.shop;
-
-    } catch (error) {
-        console.error(error);
-        this.messageService.add({
-            severity: 'error',
-            summary: this.translate.instant('error'),
-            detail: this.translate.instant('error_while_loading_user_data'),
-            life: 3000
-        });
+    // The user's shop and warehouse come from the lists this page already holds, never from a lookup
+    // by id: an administrator has no scope (the old per-id calls went out as shops/NaN and
+    // warehouses/NaN), and an id left behind by a deleted shop made the server answer 500, both shown
+    // to the user as an error on opening the form.
+    if (!this.shops?.length) {
+      await this.onGetAllShops();
     }
+    if (!this.warehouses?.length) {
+      await this.onGetAllWarehouses();
+    }
+    const shopId = Number(user.attributes?.shop);
+    const warehouseId = Number(user.attributes?.warehouse);
+    this.selectedShop = (shopId > 0 && this.shops?.find((s: any) => Number(s.shopId) === shopId)) || {};
+    this.selectedWarehouse = (warehouseId > 0 && this.warehouses?.find((w: any) => Number(w.warehouseId) === warehouseId)) || {};
 
     if (!this.isRoleManagementLocked) {
-      this.onGetAllRoles();
-      this.initializePickList();
+      // Pre-select the user's current roles. initializePickList() returns a cold Observable, and this
+      // used to call it without subscribing: the request never went out, the form opened with no role
+      // ticked (an administrator shown as needing a shop and warehouse), and saving it would have
+      // replaced the user's roles with none.
+      await this.ensureAppRoles();
+      await firstValueFrom(this.initializePickList(), { defaultValue: undefined }).catch(() => undefined);
     }
     this.userDialog = true;
 }
+
+  /** The assignable roles, loaded and awaited (onGetAllRoles fills the Roles tab without waiting). */
+  private async ensureAppRoles(): Promise<void> {
+    if (this.appRoles?.length) {
+      return;
+    }
+    try {
+      const response: any = await firstValueFrom(this.authService.getRoles());
+      this.appRoles = (response || []).filter((role: any) => !role.composite);
+    } catch (err) {
+      console.log(err);
+    }
+  }
 
   showUserDetails(user: User) {
     this.router.navigate(['/administration/users', user.id]);
@@ -542,9 +587,8 @@ export class UsersComponent implements OnInit {
     this.selectedShop = {};
     this.selectedWarehouse = {};
     this.posPin = '';
-    if (!this.isRoleManagementLocked) {
-      this.initializePickList();
-    }
+    // A new user starts with no roles; nothing from a previously opened user may carry over.
+    this.targetRoles = [];
     this.submitted = false;
     if (this.activeItem.icon == 'pi pi-fw pi-user') {
       this.userDialog = true;
@@ -666,12 +710,12 @@ export class UsersComponent implements OnInit {
 
         console.log(this.user)
         console.log(this.userRoles)
-        this.saveUserInfoAndRoleMapping(this.user, this.targetRoles)
+        this.pendingUserSave = this.saveUserInfoAndRoleMapping(this.user, this.targetRoles)
       } else {
         this.user.credentials = [];
         console.log(this.userCredential)
         console.log(this.user.credentials)
-        const response = this.saveUserInfoAndRoleMapping(this.user, this.targetRoles)
+        const response = this.pendingUserSave = this.saveUserInfoAndRoleMapping(this.user, this.targetRoles)
         console.log(this.user.credentials)
       }
       this.users = [...this.users];

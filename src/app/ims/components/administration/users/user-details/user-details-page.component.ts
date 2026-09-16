@@ -222,7 +222,9 @@ export class UserDetailsPageComponent implements OnInit {
 
   editUser(): void {
     if (!this.canEdit || !this.user) return;
-    this.userDialog = true;
+    // One user form in the console: the Users and Permissions page's. It opens this user and brings
+    // the user back here when the form is saved or closed.
+    this.router.navigate(['/administration/users'], { queryParams: { edit: this.user.id ?? this.userId } });
   }
 
   hideUserDialog(): void {

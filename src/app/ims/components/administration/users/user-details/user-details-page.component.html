@@ -339,19 +339,7 @@
     </div>
 </div>
 
-<!-- User Form Dialog -->
-<p-dialog [(visible)]="userDialog"
-    [style]="{width: '90vw', maxWidth: '800px'}"
-    [header]="'edit_user' | translate"
-    [modal]="true"
-    [draggable]="false"
-    [resizable]="false"
-    styleClass="p-fluid user-dialog">
-    <ng-template pTemplate="content">
-        <!-- User form will be handled by the parent component's form logic -->
-        <p>{{ 'user_form_loading' | translate }}</p>
-    </ng-template>
-</p-dialog>
+<!-- Editing opens the Users and Permissions form (editUser), the console's one user form. -->
 
 <!-- Reset Password Dialog -->
 <p-dialog [(visible)]="resetPasswordDialog" header="{{'reset_password_title' | translate}}" [modal]="true"

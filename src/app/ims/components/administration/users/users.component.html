@@ -238,7 +238,7 @@
             [breakpoints]="{'960px': '94vw', '640px': '98vw'}"
             header="{{ (user.id ? 'edit_user' : 'new_user') | translate }}" [modal]="true"
             styleClass="ims-form-dialog-shell user-dialog-shell"
-            class="p-fluid user-dialog" [draggable]="false" [resizable]="false">
+            class="p-fluid user-dialog" [draggable]="false" [resizable]="false" (onHide)="onUserDialogHide()">
 
             <ng-template pTemplate="content">
                 <div class="ims-form-layout">
