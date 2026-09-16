@@ -611,11 +611,24 @@ export class CashRegisterDetailsComponent implements OnInit {
 
   // ========== Cash ↔ Bank transfer (PRO) ==========
 
+  private transferDirectionOptionsCache: { label: string; value: string }[] = [];
+
+  /**
+   * The same array for as long as the labels are unchanged. A fresh array per change detection made
+   * PrimeNG 18's SelectButton recreate its buttons, which scheduled another change detection: an
+   * endless loop (NG0956) that froze the page as soon as the transfer dialog opened.
+   */
   get transferDirectionOptions(): { label: string; value: string }[] {
-    return [
-      { label: this.translate.instant('cash_to_bank'), value: 'REGISTER_TO_BANK' },
-      { label: this.translate.instant('bank_to_cash'), value: 'BANK_TO_REGISTER' },
-    ];
+    const toBank = this.translate.instant('cash_to_bank');
+    const toCash = this.translate.instant('bank_to_cash');
+    const cached = this.transferDirectionOptionsCache;
+    if (cached.length !== 2 || cached[0].label !== toBank || cached[1].label !== toCash) {
+      this.transferDirectionOptionsCache = [
+        { label: toBank, value: 'REGISTER_TO_BANK' },
+        { label: toCash, value: 'BANK_TO_REGISTER' },
+      ];
+    }
+    return this.transferDirectionOptionsCache;
   }
 
   get selectedTransferBankAccount(): BankAccount | undefined {

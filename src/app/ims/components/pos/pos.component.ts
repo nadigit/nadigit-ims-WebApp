@@ -745,11 +745,20 @@ export class PosComponent implements OnInit, OnDestroy {
     await this.loadQuickProducts();
   }
 
+  private posSellModeOptionsCache: { label: string; value: 'styles' | 'sku' }[] = [];
+
+  /** Stable array: a new one per change detection loops PrimeNG 18's SelectButton (NG0956). */
   get posSellModeOptions(): { label: string; value: 'styles' | 'sku' }[] {
-    return [
-      { label: this.translate.instant('pos_sell_mode_styles'), value: 'styles' },
-      { label: this.translate.instant('pos_sell_mode_sku'), value: 'sku' },
-    ];
+    const styles = this.translate.instant('pos_sell_mode_styles');
+    const sku = this.translate.instant('pos_sell_mode_sku');
+    const cached = this.posSellModeOptionsCache;
+    if (cached.length !== 2 || cached[0].label !== styles || cached[1].label !== sku) {
+      this.posSellModeOptionsCache = [
+        { label: styles, value: 'styles' },
+        { label: sku, value: 'sku' },
+      ];
+    }
+    return this.posSellModeOptionsCache;
   }
 
   async loadPosStyleCatalog(): Promise<void> {
