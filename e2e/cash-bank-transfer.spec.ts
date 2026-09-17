@@ -16,6 +16,8 @@ test('cash / bank transfer dialog opens and the page stays responsive', async ({
   // The header actions render once the register has loaded.
   await expect(page.getByRole('button', { name: /Open\/Close Session/i }).first()).toBeVisible({ timeout: 15_000 });
   const open = page.getByRole('button', { name: /Cash.*Bank Transfer/i }).first();
+  // The button appears once the licence capabilities load, which can trail the header actions.
+  await open.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
   test.skip(await open.count() === 0, 'no transfer button: the licence tier has no bank accounts');
   await open.click();
 
