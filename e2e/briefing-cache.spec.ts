@@ -29,7 +29,9 @@ async function goInApp(page: Page, path: string) {
 test('returning to the dashboard reuses the briefing; refresh asks the server again', async ({ page }) => {
   const requests = trackBriefingRequests(page);
   await visit(page, '');
-  await expect.poll(() => requests.length, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  // The briefing is asked for after the dashboard's other data; on a server that has just started
+  // (the first test after an upgrade) that can take longer than half a minute.
+  await expect.poll(() => requests.length, { timeout: 90_000 }).toBeGreaterThanOrEqual(1);
   await expect(page.locator('.cc-briefing').first()).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.cc-briefing--thinking')).toHaveCount(0, { timeout: 30_000 });
   const firstCount = requests.length;
