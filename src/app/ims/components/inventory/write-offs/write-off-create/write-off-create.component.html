@@ -55,11 +55,11 @@
                                     <label for="productId" class="ims-form-label">
                                         {{ 'product' | translate }} <span class="required-asterisk">*</span>
                                     </label>
-                                    <div class="ims-form-callout write-off-product-callout mb-2"
+                                    <!-- <div class="ims-form-callout write-off-product-callout mb-2"
                                         *ngIf="!writeOffForm.get('warehouseId')?.value">
                                         <i class="pi pi-info-circle"></i>
                                         <span>{{ 'please_select_warehouse_first' | translate }}</span>
-                                    </div>
+                                    </div> -->
                                     <p-autoComplete
                                         id="productId"
                                         formControlName="productId"
