@@ -18,7 +18,7 @@
         
         <!-- Phase 1: Import from File (CSV/Excel) -->
         <p-tabPanel [header]="'import_from_file' | translate">
-            <nav class="import-stepper" aria-label="Import progress">
+            <nav class="import-stepper" [attr.aria-label]="'purchase_import_progress' | translate">
                 <div *ngFor="let step of wizardSteps; let i = index" class="import-stepper-item"
                     [class.import-stepper-item--active]="isWizardStepActive(step.id)"
                     [class.import-stepper-item--complete]="isWizardStepComplete(step.id)">
@@ -162,7 +162,7 @@
                                     [chooseLabel]="'choose_file' | translate" chooseIcon="pi pi-folder-open"
                                     styleClass="import-file-upload-btn">
                                 </p-fileUpload>
-                                <small class="text-color-secondary block mt-2">CSV, XLSX, XLS · max 10 MB</small>
+                                <small class="text-color-secondary block mt-2">{{ 'purchase_import_file_types_hint' | translate: { size: 10 } }}</small>
                             </ng-container>
 
                             <ng-template #selectedFileBlock>
@@ -405,7 +405,7 @@
                          (click)="togglePurchaseExpansion(purchase.purchaseIndex)">
                         <div class="flex align-items-center gap-2">
                             <i [class]="isPurchaseExpanded(purchase.purchaseIndex) ? 'pi pi-chevron-down' : 'pi pi-chevron-right'"></i>
-                            <h4 class="m-0">Purchase #{{ purchase.purchaseIndex }}</h4>
+                            <h4 class="m-0">{{ 'purchase_import_group_title' | translate: { index: purchase.purchaseIndex } }}</h4>
                             <p-tag 
                                 [value]="getStatusLabel(purchase.status)" 
                                 [severity]="getStatusSeverity(purchase.status)"
@@ -647,7 +647,7 @@
 
         <!-- Phase 2: Import from Invoice -->
         <p-tabPanel [header]="'import_from_invoice' | translate">
-            <nav class="import-stepper" aria-label="Invoice import progress">
+            <nav class="import-stepper" [attr.aria-label]="'purchase_invoice_import_progress' | translate">
                 <div *ngFor="let step of invoiceWizardSteps; let i = index" class="import-stepper-item"
                     [class.import-stepper-item--active]="isInvoiceWizardStepActive(step.id)"
                     [class.import-stepper-item--complete]="isInvoiceWizardStepComplete(step.id)">
@@ -731,7 +731,7 @@
                                     [chooseLabel]="'choose_file' | translate" chooseIcon="pi pi-folder-open"
                                     styleClass="import-file-upload-btn">
                                 </p-fileUpload>
-                                <small class="text-color-secondary block mt-2">PDF, JPEG, PNG · max 10 MB</small>
+                                <small class="text-color-secondary block mt-2">{{ 'purchase_invoice_file_types_hint' | translate: { size: 10 } }}</small>
                             </ng-container>
 
                             <ng-template #selectedInvoiceBlock>
@@ -748,7 +748,7 @@
                                         (click)="onInvoiceFileRemove()" [pTooltip]="'remove' | translate">
                                     </button>
                                 </div>
-                                <img *ngIf="invoicePreviewUrl" [src]="invoicePreviewUrl" alt="Invoice preview"
+                                <img *ngIf="invoicePreviewUrl" [src]="invoicePreviewUrl" [alt]="'purchase_invoice_preview_alt' | translate"
                                     class="mt-3 border-round w-full invoice-upload-preview">
                             </ng-template>
                         </div>
@@ -932,11 +932,11 @@
                             </span>
                         </div>
                     </div>
-                    <div *ngIf="getDisplayWarnings(parsedInvoiceData.warnings).length > 0" class="mt-3">
+                    <div *ngIf="getDisplayWarnings(parsedInvoiceData).length > 0" class="mt-3">
                         <p class="text-orange-700 font-semibold mb-2">
                             <i class="pi pi-exclamation-triangle mr-2"></i>{{ 'warnings' | translate }}
                         </p>
-                        <div *ngIf="getActionRequiredWarnings(parsedInvoiceData.warnings).length > 0" class="purchase-import-warning-section mb-2">
+                        <div *ngIf="getActionRequiredWarnings(parsedInvoiceData).length > 0" class="purchase-import-warning-section mb-2">
                             <div class="purchase-import-warning-section-title">
                                 {{ 'purchase_invoice_warning_action_needed' | translate }}
                             </div>
@@ -944,27 +944,21 @@
                                 <i class="pi pi-arrow-right mr-2"></i>{{ 'purchase_invoice_warning_next_step' | translate }}
                             </div>
                             <div class="purchase-import-warning-list">
-                                <div *ngFor="let warning of getActionRequiredWarnings(parsedInvoiceData.warnings)" class="purchase-import-warning-item">
+                                <div *ngFor="let warning of getActionRequiredWarnings(parsedInvoiceData)" class="purchase-import-warning-item">
                                     <i class="pi pi-info-circle purchase-import-warning-icon"></i>
                                     <span>{{ warning }}</span>
                                 </div>
                             </div>
                         </div>
-                        <div *ngIf="getTechnicalWarnings(parsedInvoiceData.warnings).length > 0" class="purchase-import-warning-section purchase-import-warning-section-technical">
+                        <div *ngIf="getTechnicalWarnings(parsedInvoiceData).length > 0" class="purchase-import-warning-section purchase-import-warning-section-technical">
                             <div class="purchase-import-warning-section-title">
                                 {{ 'purchase_invoice_warning_technical_details' | translate }}
                             </div>
                             <div class="purchase-import-warning-list">
-                                <div *ngFor="let warning of getTechnicalWarnings(parsedInvoiceData.warnings)" class="purchase-import-warning-item purchase-import-warning-item-technical">
+                                <div *ngFor="let warning of getTechnicalWarnings(parsedInvoiceData)" class="purchase-import-warning-item purchase-import-warning-item-technical">
                                     <i class="pi pi-cog purchase-import-warning-icon"></i>
                                     <span>{{ warning }}</span>
                                 </div>
-                            </div>
-                        </div>
-                        <div *ngIf="getActionRequiredWarnings(parsedInvoiceData.warnings).length === 0 && getTechnicalWarnings(parsedInvoiceData.warnings).length > 0" class="purchase-import-warning-list">
-                            <div *ngFor="let warning of getTechnicalWarnings(parsedInvoiceData.warnings)" class="purchase-import-warning-item purchase-import-warning-item-technical">
-                                <i class="pi pi-info-circle purchase-import-warning-icon"></i>
-                                <span>{{ warning }}</span>
                             </div>
                         </div>
                     </div>
@@ -1006,7 +1000,7 @@
                                             class="text-primary cursor-pointer inline-flex align-items-center justify-content-center"
                                             [pTooltip]="'add_new_category' | translate"
                                             tooltipPosition="top"
-                                            aria-label="Add new category">
+                                            [attr.aria-label]="'add_new_category' | translate">
                                             <i class="pi pi-plus"></i>
                                         </a>
                                     </div>
@@ -1255,7 +1249,7 @@
                                         class="text-primary cursor-pointer inline-flex align-items-center justify-content-center"
                                         [pTooltip]="'add_new_category' | translate"
                                         tooltipPosition="top"
-                                        aria-label="Add new category">
+                                        [attr.aria-label]="'add_new_category' | translate">
                                         <i class="pi pi-plus"></i>
                                     </a>
                                 </div>

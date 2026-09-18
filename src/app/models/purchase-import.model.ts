@@ -132,7 +132,10 @@ export interface ParsedInvoiceData {
   metadata: Record<string, string>; // Additional extracted data
   detectedLanguage: string; // "en", "ar", "fr", "es"
   confidence: number; // 0.0 to 1.0 - parsing confidence score
+  /** In the user's language, for the user to act on */
   warnings: string[];
+  /** In the user's language, for an administrator (OCR setup, AI provider errors) */
+  technicalWarnings?: string[];
   errors: string[];
 }
 

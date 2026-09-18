@@ -919,27 +919,31 @@ export class PurchaseImportComponent implements OnInit {
     return text;
   }
 
-  /** UI-facing warning list: translated + deduplicated + cleaned for readability. */
-  getDisplayWarnings(warnings: string[] | undefined): string[] {
-    return this.buildDisplayWarnings(warnings);
+  /**
+   * Warnings of a parsed invoice. The server sends them in the user's language, with technical
+   * details (OCR setup, AI provider errors) in technicalWarnings; older servers sent everything in
+   * English in warnings, which the English matching below still sorts and translates.
+   */
+  getDisplayWarnings(data: ParsedInvoiceData | null | undefined): string[] {
+    return [...this.getActionRequiredWarnings(data), ...this.getTechnicalWarnings(data)];
   }
 
-  getActionRequiredWarnings(warnings: string[] | undefined): string[] {
-    return this.buildDisplayWarnings(warnings, false);
+  getActionRequiredWarnings(data: ParsedInvoiceData | null | undefined): string[] {
+    return this.buildDisplayWarnings(data?.warnings, false);
   }
 
-  getTechnicalWarnings(warnings: string[] | undefined): string[] {
-    return this.buildDisplayWarnings(warnings, true);
+  getTechnicalWarnings(data: ParsedInvoiceData | null | undefined): string[] {
+    return this.buildDisplayWarnings([...(data?.technicalWarnings ?? []), ...(data?.warnings ?? [])], true, data?.technicalWarnings);
   }
 
-  private buildDisplayWarnings(warnings: string[] | undefined, technicalOnly?: boolean): string[] {
+  private buildDisplayWarnings(warnings: string[] | undefined, technicalOnly?: boolean, technical?: string[]): string[] {
     if (!warnings?.length) {
       return [];
     }
     const out: string[] = [];
     const seen = new Set<string>();
     for (const w of warnings) {
-      const isTechnical = this.isTechnicalWarningRaw(w);
+      const isTechnical = (technical?.includes(w) ?? false) || this.isTechnicalWarningRaw(w);
       if (technicalOnly === true && !isTechnical) {
         continue;
       }
