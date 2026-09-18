@@ -26,6 +26,8 @@ export interface PurchaseImportOptions {
 export interface ImportRowError {
   rowNumber: number; // 1-based, including header
   column: string;
+  /** The column's name in the user's language (column stays the technical key) */
+  columnLabel?: string;
   message: string;
   invalidValue: string;
   severity: "ERROR" | "WARNING";

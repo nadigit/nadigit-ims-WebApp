@@ -5527,7 +5527,7 @@
   "pending_payments_available_for_confirmation": "Pending payments are available for confirmation",
   "inventory_losses": "Inventory Losses",
   "inventory_write_offs": "Inventory Write-Offs",
-  "supplier": "Supplier",
+  "supplier": "Fournisseur",
   "refund_summary": "Refund Summary",
   "refund_status_canceled": "Canceled",
   "return_information": "Return Information",

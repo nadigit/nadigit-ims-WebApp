@@ -349,7 +349,7 @@
                 <ng-template pTemplate="body" let-error>
                     <tr>
                         <td>{{ error.rowNumber }}</td>
-                        <td>{{ error.column }}</td>
+                        <td>{{ error.columnLabel || error.column }}</td>
                         <td>{{ translateErrorMessage(error.message, error) }}</td>
                         <td>{{ error.invalidValue || '-' }}</td>
                         <td>
@@ -632,7 +632,7 @@
                 <ng-template pTemplate="body" let-error>
                     <tr>
                         <td>{{ error.rowNumber }}</td>
-                        <td>{{ error.column }}</td>
+                        <td>{{ error.columnLabel || error.column }}</td>
                         <td>{{ translateErrorMessage(error.message, error) }}</td>
                         <td>{{ error.invalidValue || '-' }}</td>
                         <td>
