@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, DoCheck, ElementRef, HostListener, OnChanges, OnDestroy, OnInit, SimpleChanges, ViewChild } from '@angular/core';
 import { ActivatedRoute, ParamMap, Router } from '@angular/router';
 import { MessageService, LazyLoadEvent, MenuItem } from 'primeng/api';
 import { Table } from 'primeng/table';
@@ -71,7 +71,7 @@ import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
   styleUrls: ['./purchases.component.css', '../purchases.component.css'],
   providers: [MessageService, DatePipe]
 })
-export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
+export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy, DoCheck {
 
   /** Display-ready URL for a category's stored (relative) image. */
   categoryImageUrl(category: any): string {
@@ -428,6 +428,80 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
     this.activityProfileSub?.unsubscribe();
   }
 
+  /**
+   * The summary figures, computed once per change-detection pass. Five bindings used to ask for
+   * them, and each answer walked every line - several times over, since the total re-derives the
+   * discount and the tax - and in rules-based tax mode serialised every line too. The form has no
+   * change handlers on its inputs (quantities, prices, discount, charges are all plain ngModel), so
+   * the figures are refreshed where Angular is about to render them rather than on each input.
+   */
+  purchaseTotals = { subtotal: 0, discount: 0, tax: 0, total: 0 };
+
+  /** From this many lines on, the line table renders only the lines in view. */
+  private readonly virtualLineThreshold = 40;
+  /**
+   * The height the virtual scroller assumes for a line - its row plus its batch/expiry row. A
+   * starting value: the real one is read from the first rendered line.
+   */
+  lineHeight = 147;
+  useVirtualLines = false;
+  @ViewChild('lineTable', { read: ElementRef }) private lineTableRef?: ElementRef<HTMLElement>;
+
+  /**
+   * Lines are identified by product, so PrimeNG reuses a line's rows instead of rebuilding them all
+   * when one changes.
+   */
+  trackLine = (_index: number, product: Product): number | string => product?.productId ?? _index;
+
+  ngDoCheck(): void {
+    const lines = this.targetProducts || [];
+    const subtotal = this.getPurchaseSubtotal();
+    const discount = this.calculateDiscountAmount();
+    const tax = this.calculateTax();
+    const withoutTax = Math.max(subtotal - discount, 0);
+    this.purchaseTotals = {
+      subtotal,
+      discount,
+      tax,
+      total: withoutTax + (this.taxEnabled ? tax : 0)
+        + (this.purchase?.transportAmount || 0) + (this.purchase?.additionalChargesAmount || 0),
+    };
+    this.updateLineVirtualisation(lines);
+  }
+
+  /**
+   * A long purchase puts every line in the page - two rows each, one of them a date picker - and the
+   * browser then styles, lays out and change-detects all of them on every keystroke. Rendering only
+   * what is on screen keeps that flat, but it holds every line to one height, so it is used only
+   * while lines are uniform: service lines have no batch row, and fashion lines add a variant hint.
+   */
+  private updateLineVirtualisation(lines: any[]): void {
+    const wasVirtual = this.useVirtualLines;
+    this.useVirtualLines = lines.length >= this.virtualLineThreshold
+      && !this.activityProfileService.isFashionProfile
+      && lines.every((line) => line?.productType !== 'SERVICE');
+    if (this.useVirtualLines && !wasVirtual) {
+      this.measureLineHeight();
+    }
+  }
+
+  /** The scroller places lines at the height it is told; tell it the one the browser rendered. */
+  private measureLineHeight(): void {
+    setTimeout(() => {
+      const row = this.lineTableRef?.nativeElement.querySelector<HTMLElement>('tr.purchase-line-row');
+      if (!row) {
+        return;
+      }
+      const next = row.nextElementSibling as HTMLElement | null;
+      const height = row.offsetHeight
+        + (next?.classList.contains('purchase-line-batch-row') ? next.offsetHeight : 0);
+      if (height > 0 && Math.abs(height - this.lineHeight) > 1) {
+        this.lineHeight = height;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
   /** True when org profile requires lot + expiry on each physical line (matches backend Pharmacy rules). */
   isProductLineBatchExpiryInvalid(product: any): boolean {
     if (!this.activityProfileService.emphasizeBatchAndExpiry) {
@@ -742,7 +816,9 @@ export class PurchasesComponent implements OnInit, OnChanges, AfterViewInit, OnD
           ? Number(product.buyingPrice)
           : undefined;
       const newProduct = { ...product, purchaseItemPricePerUnit: unit, purchaseItemQuantity: defaultLineQuantity(product) };
-      this.targetProducts.push(newProduct);
+      // A new array, not a push: the virtual scroller only notices a changed line count when the
+      // array it was given is replaced.
+      this.targetProducts = [...this.targetProducts, newProduct];
       this.sourceProducts = this.sourceProducts.filter(p => p.productId !== product.productId);
       this.purchasePickerFilteredProducts = this.purchasePickerFilteredProducts.filter(
         p => p.productId !== product.productId

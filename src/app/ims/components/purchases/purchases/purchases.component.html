@@ -771,7 +771,10 @@
                             <p-badge [value]="targetProducts.length" severity="info"></p-badge>
                         </div>
 
-                        <p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+                        <p-table #lineTable [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+                            [class.purchase-lines--virtual]="useVirtualLines"
+                            [rowTrackBy]="trackLine"
+                            [virtualScroll]="useVirtualLines" [virtualScrollItemSize]="lineHeight"
                             [scrollable]="targetProducts.length > 4" scrollHeight="280px">
                             <ng-template pTemplate="header">
                                 <tr>
@@ -790,7 +793,7 @@
                                             <img [src]="product | productImage" [alt]="product.name"
                                                 class="purchase-line-product__image" />
                                             <div class="purchase-line-product__body">
-                                                <div class="purchase-line-product__name">{{ product.name }}</div>
+                                                <div class="purchase-line-product__name" [attr.title]="product.name">{{ product.name }}</div>
                                                 <div class="purchase-line-product__meta">
                                                     {{ product.category?.categoryName || 'N/A' }}
                                                 </div>
@@ -947,7 +950,7 @@
                                     <p-inputNumber [(ngModel)]="purchase.discount" inputId="discount"
                                         [mode]="discountType === 'Percentage' ? 'decimal' : 'currency'"
                                         [currency]="currency" [min]="0"
-                                        [max]="discountType === 'Percentage' ? 100 : getPurchaseSubtotal()"
+                                        [max]="discountType === 'Percentage' ? 100 : purchaseTotals.subtotal"
                                         [minFractionDigits]="0" [maxFractionDigits]="2" styleClass="w-full"
                                         [suffix]="discountType === 'Percentage' ? '%' : ''"
                                         placeholder="{{ 'enter_discount' | translate }}">
@@ -956,7 +959,7 @@
 
                                 <div class="purchase-summary-row" *ngIf="purchase.discount && purchase.discount > 0">
                                     <span>{{ 'discount_applied' | translate }}</span>
-                                    <span>-{{ calculateDiscountAmount() | currency:currency:'symbol':'1.2-2' }}</span>
+                                    <span>-{{ purchaseTotals.discount | currency:currency:'symbol':'1.2-2' }}</span>
                                 </div>
 
                                 <div class="field mb-0">
@@ -968,7 +971,7 @@
 
                                 <div *ngIf="taxEnabled" class="purchase-summary-row">
                                     <span>{{ 'tax_to_pay' | translate }}</span>
-                                    <span>{{ calculateTax() | currency:currency:'symbol':'1.2-2' }}</span>
+                                    <span>{{ purchaseTotals.tax | currency:currency:'symbol':'1.2-2' }}</span>
                                 </div>
 
                                 <div class="field mb-0">
@@ -992,7 +995,7 @@
                                 <div class="purchase-summary-total">
                                     <span>{{ 'total' | translate }}</span>
                                     <span class="purchase-summary-total__amount">
-                                        {{ calculateTotalAmount() | currency:currency:'symbol':'1.2-2' }}
+                                        {{ purchaseTotals.total | currency:currency:'symbol':'1.2-2' }}
                                     </span>
                                 </div>
 
@@ -1142,7 +1145,7 @@
                 <div class="ims-form-footer-total" aria-live="polite">
                     <span class="ims-form-footer-total__label">{{ 'total' | translate }}</span>
                     <span class="ims-form-footer-total__amount">
-                        {{ calculateTotalAmount() | currency:currency:'symbol':'1.2-2' }}
+                        {{ purchaseTotals.total | currency:currency:'symbol':'1.2-2' }}
                     </span>
                 </div>
 

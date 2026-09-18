@@ -353,6 +353,16 @@
   margin-top: 0.125rem;
 }
 
+/* Long purchases scroll virtually, which places every line at one measured height; a name wrapping
+   onto a second line would break that, so in that mode names stay on one line (full name in the
+   title). */
+.purchase-lines--virtual .purchase-line-product__name,
+.purchase-lines--virtual .purchase-line-product__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .purchase-line-product__hint {
   display: block;
   margin-top: 0.25rem;
