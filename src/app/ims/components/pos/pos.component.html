@@ -576,7 +576,7 @@
                   <div class="pos-suggestion-media flex-shrink-0">
                     <img
                       class="pos-suggestion-image"
-                      [src]="getProductImageUrl(product)"
+                      [src]="getProductImageUrl(product)" (error)="onProductImageError($event)"
                       [alt]="product.name"
                       loading="lazy"
                       width="48"
@@ -612,7 +612,7 @@
             <div class="col-4 md:col-3" *ngFor="let product of searchResults">
               <div class="pos-product-card" (click)="addToCart(product)">
                 <div class="pos-product-image-container">
-                  <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-product-image" />
+                  <img [src]="getProductImageUrl(product)" (error)="onProductImageError($event)" [alt]="product.name" class="pos-product-image" />
                   <div class="pos-product-overlay">
                     <button 
                       pButton 
@@ -655,7 +655,7 @@
               [style]="{ height: '300px' }">
               <ng-template let-product pTemplate="item">
                 <div class="pos-search-list-item" (click)="addToCart(product)">
-                  <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-product-thumb" />
+                  <img [src]="getProductImageUrl(product)" (error)="onProductImageError($event)" [alt]="product.name" class="pos-product-thumb" />
                   <div class="flex-1 ml-3">
                     <div class="font-semibold truncate">{{ product.name }}</div>
                     <small class="text-600">{{ product.reference }}</small>
@@ -726,7 +726,7 @@
             <div class="col-4 md:col-3" *ngFor="let product of filteredQuickProducts">
               <div class="pos-quick-product-card" (click)="addToCart(product)">
                 <div class="pos-quick-image">
-                  <img [src]="getProductImageUrl(product)" [alt]="product.name" />
+                  <img [src]="getProductImageUrl(product)" (error)="onProductImageError($event)" [alt]="product.name" />
                   <div class="pos-quick-overlay">
                     <span class="pos-quick-add">+</span>
                   </div>
@@ -745,7 +745,7 @@
               <div *ngFor="let product of filteredQuickProducts"
                    class="pos-quick-list-item"
                    (click)="addToCart(product)">
-                <img [src]="getProductImageUrl(product)" [alt]="product.name" class="pos-quick-thumb" />
+                <img [src]="getProductImageUrl(product)" (error)="onProductImageError($event)" [alt]="product.name" class="pos-quick-thumb" />
                 <div class="pos-quick-list-text">
                   <div class="pos-quick-list-name">{{ product.name }}</div>
                   <div class="pos-quick-list-ref text-600">{{ product.reference }}</div>
@@ -842,9 +842,9 @@
 
         <!-- Cart Items -->
         <div class="pos-cart-items" *ngIf="cart && cart.items && cart.items.length > 0">
-          <div class="pos-cart-item" *ngFor="let item of cart.items; let i = index">
+          <div class="pos-cart-item" *ngFor="let item of cart.items; let i = index; trackBy: trackByCartItemId">
             <div class="pos-cart-item-image">
-              <img [src]="getCartItemImage(item)" [alt]="item.productName" />
+              <img [src]="getCartItemImage(item)" (error)="onProductImageError($event)" [alt]="item.productName" />
             </div>
             <div class="pos-cart-item-details">
               <div class="font-semibold truncate">{{ item.productName }}</div>
@@ -890,8 +890,8 @@
                   #qtyInput
                   type="number"
                   [value]="getCartLineDisplayQuantity(item)"
-                  (change)="onCartQuantityInput(item, qtyInput.value)"
-                  (keyup.enter)="onCartQuantityInput(item, qtyInput.value); qtyInput.blur()"
+                  (change)="onCartQuantityInput(item, qtyInput.value, qtyInput)"
+                  (keyup.enter)="qtyInput.blur()"
                   [min]="getCartLineQuantityMin(item)"
                   [max]="getCartLineMaxQuantity(item)"
                   [step]="getCartLineQuantityStep(item)"
@@ -917,8 +917,8 @@
                   min="0"
                   step="0.01"
                   [value]="item.pricePerUnit"
-                  (change)="onCartUnitPriceInput(item, unitPriceInput.value)"
-                  (keyup.enter)="onCartUnitPriceInput(item, unitPriceInput.value); unitPriceInput.blur()"
+                  (change)="onCartUnitPriceInput(item, unitPriceInput.value, unitPriceInput)"
+                  (keyup.enter)="unitPriceInput.blur()"
                   class="pos-unitprice-input"
                   aria-label="{{ 'edit_unit_price' | translate }}" />
                 <span class="pos-unitprice-suffix" *ngIf="showCartUnitPriceSuffix(item)">/ {{ item.measureUnit | translate }}</span>
@@ -1314,7 +1314,7 @@
         <div class="pos-view-cart-item" *ngFor="let item of viewedCart.items">
           <div class="flex align-items-center gap-3">
             <div class="pos-view-item-image">
-              <img [src]="getCartItemImage(item)" [alt]="item.productName" />
+              <img [src]="getCartItemImage(item)" (error)="onProductImageError($event)" [alt]="item.productName" />
             </div>
             <div class="flex-1">
               <div class="font-semibold">{{ item.productName }}</div>

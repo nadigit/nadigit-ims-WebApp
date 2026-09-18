@@ -160,8 +160,20 @@ export class PosComponent implements OnInit, OnDestroy {
   filteredCategories: any[] = [];
   productViewMode: 'grid' | 'list' = 'list';
   private searchSubject = new Subject<string>();
-  private isSearching: boolean = false;
-  
+  /** Bumped per product search; a response only lands if it is still the latest. */
+  private searchSeq = 0;
+  /** productId -> stored image URL, so a product keeps its picture after it leaves the search list. */
+  private readonly productImageById = new Map<number, string>();
+
+  // Cart line edits: sent one at a time, rapid +/- taps merged into one request.
+  private cartMutationChain: Promise<void> = Promise.resolve();
+  /** cartItemId -> display quantity the cashier asked for and the server has not confirmed yet. */
+  private readonly desiredLineQuantities = new Map<number, number>();
+  /** cartItemIds with a desired quantity not yet handed to the queue. */
+  private readonly unsentLineQuantities = new Set<number>();
+  private lineQuantityFlushTimer: any = null;
+  private static readonly LINE_QUANTITY_DEBOUNCE_MS = 250;
+
   // Barcode Scanner
   scannerDialog: boolean = false;
   scannerEnabled: boolean = false;
@@ -523,6 +535,7 @@ export class PosComponent implements OnInit, OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.clearSummaryFieldDebounceTimers();
+    this.flushLineQuantities();
     this.clearBarcodeDebounce();
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
@@ -790,16 +803,15 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   private applyPosStyleSearchFilter(): void {
-    const q = this.posStyleSearch.trim().toLowerCase();
-    if (!q) {
+    const words = this.posStyleSearch.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) {
       this.posStyleFamiliesFiltered = [...this.posStyleFamilies];
       return;
     }
     this.posStyleFamiliesFiltered = this.posStyleFamilies.filter((row) => {
       const f = row.family;
-      const ref = (f.styleReference ?? '').toLowerCase();
-      const name = (f.name ?? '').toLowerCase();
-      return ref.includes(q) || name.includes(q);
+      const haystack = `${f.styleReference ?? ''} ${f.name ?? ''}`.toLowerCase();
+      return words.every(w => haystack.includes(w));
     });
   }
 
@@ -1107,26 +1119,49 @@ export class PosComponent implements OnInit, OnDestroy {
     this.productViewMode = this.productViewMode === 'grid' ? 'list' : 'grid';
   }
 
+  /**
+   * Raw stored image of a product-like object. POS DTOs carry `imageUrl`, but products from the
+   * shared product search carry the entity's `productImage` — reading only `imageUrl` is why
+   * searched products (and the cart lines added from them) showed no picture.
+   */
+  private rawProductImage(product: any): string {
+    const raw = product?.imageUrl || product?.productImage || product?.primaryImageUrl || '';
+    return typeof raw === 'string' ? raw.trim() : '';
+  }
+
+  private rememberProductImage(product: any): void {
+    const raw = this.rawProductImage(product);
+    if (product?.productId && raw) {
+      this.productImageById.set(product.productId, raw);
+    }
+  }
+
   getProductImageUrl(product: POSProductDTO | any): string {
-    let raw = '';
-    if (product?.imageUrl) {
-      raw = product.imageUrl;
-    } else if (product?.productId) {
-      // Try to find product in quickProducts by productId
-      const found = this.quickProducts.find(p => p.productId === product.productId);
-      raw = found?.imageUrl ?? '';
+    let raw = this.rawProductImage(product);
+    if (!raw && product?.productId) {
+      raw = this.productImageById.get(product.productId)
+        ?? this.rawProductImage(this.quickProducts.find(p => p.productId === product.productId));
     }
     // Stored URLs are relative (e.g. /api/uploads/products/..). Resolve to an
     // absolute URL against the API host, otherwise the browser requests them
     // from the SPA origin and they 404 (broken images).
-    return resolvePublicAssetUrl(raw) || 'assets/core-images/no-image.png';
+    return resolvePublicAssetUrl(raw) || PosComponent.NO_IMAGE;
   }
 
   getCartItemImage(item: any): string {
-    // Try to find product in quickProducts or searchResults
-    const product = [...this.quickProducts, ...this.searchResults].find(p => p.productId === item.productId);
-    return this.getProductImageUrl(product || {});
+    // Cart lines carry their own image; older servers don't, so fall back to what we've seen.
+    return this.getProductImageUrl({ productId: item?.productId, imageUrl: item?.imageUrl });
   }
+
+  /** A stored image that no longer loads (deleted file, stale host) shows the placeholder, not a broken icon. */
+  onProductImageError(event: Event): void {
+    const img = event.target as HTMLImageElement | null;
+    if (img && !img.src.endsWith(PosComponent.NO_IMAGE)) {
+      img.src = PosComponent.NO_IMAGE;
+    }
+  }
+
+  private static readonly NO_IMAGE = 'assets/core-images/no-image.png';
 
   private isWalkInCustomer(customer: any): boolean {
     // Check if customer name matches walk-in customer translations
@@ -1307,12 +1342,9 @@ export class PosComponent implements OnInit, OnDestroy {
       typeof event === 'string'
         ? event
         : (typeof event?.query === 'string' ? event.query : '');
-    const query = querySource.trim();
-    this.searchQuery = query;
-
-    // Clear previous suggestions immediately to prevent duplicates
-    this.searchSuggestions = [];
-    this.searchResults = [];
+    // Search with the cleaned text but never write it back into searchQuery: that is the
+    // input's ngModel, and trimming it mid-typing swallowed the space the cashier just typed.
+    const query = querySource.trim().replace(/\s+/g, ' ');
 
     // Perform search and populate suggestions (empty query loads default products)
     this.performSearch(query);
@@ -1361,36 +1393,34 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Prevent multiple simultaneous searches
-    if (this.isSearching) {
-      return;
-    }
-
-    this.isSearching = true;
+    // Every keystroke-search runs; only the newest one may publish results. (Previously a
+    // search typed while another was in flight was dropped, leaving results for old text.)
+    const seq = ++this.searchSeq;
     this.productsLoading = true;
 
     try {
       // Use the same search method as orders component (does contains search)
       const res$ = await this.productService.searchProductsForOrder(query, this.getWarehouseIdForApi());
       const products = await firstValueFrom(res$);
+      if (seq !== this.searchSeq) {
+        return;
+      }
 
       // Normalize response like orders component does
       const normalizedProducts = this.normalizeProductSearchResponse(products);
 
-      console.log('Normalized products for query "' + query + '":', normalizedProducts.length, 'unique products');
-      if (normalizedProducts.length > 0) {
-        console.log('First product properties:', Object.keys(normalizedProducts[0]));
-        console.log('First product ID field:', normalizedProducts[0].productId || normalizedProducts[0].id);
-      }
-
       // Set both searchSuggestions for autocomplete dropdown and searchResults for grid/list display
       const warehouseScoped = normalizedProducts.filter((p: any) => this.matchesSelectedWarehouse(p));
+      warehouseScoped.forEach((p: any) => this.rememberProductImage(p));
       this.searchSuggestions = [...warehouseScoped]; // Create a new array reference
       this.searchResults = [...warehouseScoped];
 
       // Force change detection
       this.cdr.detectChanges();
     } catch (error) {
+      if (seq !== this.searchSeq) {
+        return;
+      }
       console.error('Error searching products:', error);
       this.searchSuggestions = [];
       this.searchResults = [];
@@ -1401,8 +1431,9 @@ export class PosComponent implements OnInit, OnDestroy {
         life: 3000
       });
     } finally {
-      this.productsLoading = false;
-      this.isSearching = false;
+      if (seq === this.searchSeq) {
+        this.productsLoading = false;
+      }
     }
   }
 
@@ -1500,6 +1531,7 @@ export class PosComponent implements OnInit, OnDestroy {
     this.cart.additionalChargesAmount = this.additionalChargesAmount || 0;
     this.cart.discountType = this.discountType;
     this.cart.discountAmount = this.computeCartDiscountFromUi();
+    this.cart.discountPercent = this.discountType === 'Percentage' ? (this.discountAmount || 0) : null;
     this.cart.taxEnabled = this.taxEnabled;
     if (this.taxEnabled && this.taxRate > 0 && !this.isCustomerTaxExempt()) {
       const taxableAmount = (this.cart.subtotal || 0) - (this.cart.discountAmount || 0);
@@ -1735,11 +1767,11 @@ export class PosComponent implements OnInit, OnDestroy {
     const csv = ids.join(',');
     this.optionsSaving = true;
     try {
-      const updated$ = await this.posService.updateCartItem(
-        this.optionsCartItem.cartItemId, undefined, undefined, csv);
-      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
-      this.updateCartTracking();
-      this.saveToLocalStorage();
+      const cartItemId = this.optionsCartItem.cartItemId;
+      await this.enqueueCartMutation(async () => {
+        const updated$ = await this.posService.updateCartItem(cartItemId, undefined, undefined, csv);
+        this.applyCartMutationResult(await firstValueFrom(updated$));
+      });
       this.closeCartOptions();
     } catch (e: any) {
       console.error('Failed to update cart line options', e);
@@ -1918,10 +1950,12 @@ export class PosComponent implements OnInit, OnDestroy {
       if (this.isOnline) {
         // Send display quantity; backend converts to storage via toStorageFromUserInput
         const apiQty = QuantityScale.isFractional(productMeta) ? quantity : Math.max(1, Math.round(quantity));
-        const updated$ = await this.posService.addItemToCart(this.cart.cartId, productId, apiQty);
-        this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
-        this.updateCartTracking();
-        this.saveToLocalStorage();
+        this.rememberProductImage(product);
+        await this.enqueueCartMutation(async () => {
+          if (!this.cart) return;
+          const updated$ = await this.posService.addItemToCart(this.cart.cartId, productId, apiQty);
+          this.applyCartMutationResult(await firstValueFrom(updated$));
+        });
       } else {
         // Offline mode - update cart locally
         // This is a simplified version - you may want to queue the operation
@@ -1974,63 +2008,173 @@ export class PosComponent implements OnInit, OnDestroy {
     }
   }
 
-  async onQuantityChange(item: any, newQuantity: number) {
-    if (!this.cart) return;
-    if (newQuantity <= 0) {
+  trackByCartItemId(index: number, item: POSCartItemDTO): any {
+    return item?.cartItemId ?? index;
+  }
+
+  /**
+   * Runs a cart edit only after every earlier one has finished. Without this, fast +/- taps
+   * or price edits raced each other and an older server response could land last and
+   * overwrite the newer cart (the total "jumping" back and forth).
+   */
+  private enqueueCartMutation<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.cartMutationChain.then(task);
+    this.cartMutationChain = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  /** Resolves once every cart edit, including debounced quantity taps, has reached the server. */
+  private async settleCartChanges(): Promise<void> {
+    this.flushLineQuantities();
+    await this.cartMutationChain;
+  }
+
+  /**
+   * Applies a cart returned by a cart edit, then re-applies quantities the cashier has set but
+   * the server hasn't confirmed yet, so lines and totals don't flicker back to older values.
+   */
+  private applyCartMutationResult(cart: POSCartDTO | null): void {
+    if (!cart || (this.cart && cart.cartId !== this.cart.cartId)) {
+      return; // the cashier moved to another cart meanwhile
+    }
+    this.assignCartFromServer(cart);
+    this.overlayDesiredLineQuantities();
+    this.updateCartTracking();
+    this.saveToLocalStorage();
+  }
+
+  private overlayDesiredLineQuantities(): void {
+    if (!this.cart?.items?.length || this.desiredLineQuantities.size === 0) {
       return;
     }
-    
-    const displayQty = this.getCartLineDisplayQuantity(item);
-    const skipClientMaxQty =
-      this.salesStockSoftReservationEnabled && this.isOnline;
-    const netAvailable = this.getCartLineDisplayStock(item);
-    if (netAvailable > 0) {
-      if (!skipClientMaxQty && displayQty > netAvailable) {
-        this.messageService.add({
-          severity: 'warn',
-          summary: this.translate.instant('warning'),
-          detail: this.getInsufficientStockDetail(undefined, netAvailable, displayQty),
-          life: 3000
-        });
-        return;
+    let changed = false;
+    for (const item of this.cart.items) {
+      const desired = this.desiredLineQuantities.get(item.cartItemId);
+      if (desired != null && desired !== this.getCartLineDisplayQuantity(item)) {
+        this.applyLocalLineQuantity(item, desired);
+        changed = true;
       }
     }
+    if (changed) {
+      this.recalculateCartFromLines();
+    }
+  }
 
+  /** Optimistic line update, priced at the line's current effective rate (price rules, portions included). */
+  private applyLocalLineQuantity(item: POSCartItemDTO, displayQuantity: number): void {
+    const currentQuantity = this.getCartLineDisplayQuantity(item);
+    const rate = currentQuantity > 0 && (item.subtotal || 0) > 0
+      ? item.subtotal / currentQuantity
+      : (item.pricePerUnit || 0);
+    item.displayQuantity = displayQuantity;
+    item.subtotal = rate * displayQuantity;
+  }
+
+  private recalculateCartFromLines(): void {
+    if (!this.cart) {
+      return;
+    }
+    this.cart.subtotal = this.cart.items.reduce((sum, it) => sum + (it.subtotal || 0), 0);
+    this.reconcileUiSummaryFieldsToCart();
+  }
+
+  private scheduleLineQuantityFlush(): void {
+    if (this.lineQuantityFlushTimer) {
+      clearTimeout(this.lineQuantityFlushTimer);
+    }
+    this.lineQuantityFlushTimer = setTimeout(() => this.flushLineQuantities(), PosComponent.LINE_QUANTITY_DEBOUNCE_MS);
+  }
+
+  private flushLineQuantities(): void {
+    if (this.lineQuantityFlushTimer) {
+      clearTimeout(this.lineQuantityFlushTimer);
+      this.lineQuantityFlushTimer = null;
+    }
+    for (const cartItemId of Array.from(this.unsentLineQuantities)) {
+      this.unsentLineQuantities.delete(cartItemId);
+      this.enqueueCartMutation(() => this.sendLineQuantity(cartItemId)).catch(() => undefined);
+    }
+  }
+
+  /** Sends the latest quantity asked for on a line (earlier taps were merged into it). */
+  private async sendLineQuantity(cartItemId: number): Promise<void> {
+    const quantity = this.desiredLineQuantities.get(cartItemId);
+    const item = this.cart?.items?.find(i => i.cartItemId === cartItemId);
+    if (quantity == null || !item) {
+      this.desiredLineQuantities.delete(cartItemId);
+      return;
+    }
+    this.unsentLineQuantities.delete(cartItemId);
     this.cartSaving = true;
     try {
       const priceOverride = this.getManualPriceOverride(item);
-      const apiQuantity = this.toApiQuantity(item, displayQty);
+      const apiQuantity = this.toApiQuantity(item, quantity);
       const updated$ = priceOverride != null
-        ? await this.posService.updateCartItem(item.cartItemId, apiQuantity, priceOverride)
-        : await this.posService.updateCartItem(item.cartItemId, apiQuantity);
+        ? await this.posService.updateCartItem(cartItemId, apiQuantity, priceOverride)
+        : await this.posService.updateCartItem(cartItemId, apiQuantity);
       const updatedCart = await firstValueFrom(updated$);
-      // Normalize cart to recalculate totals
-      this.cart = this.normalizeCartItems(updatedCart);
-      this.updateCartTracking();
-      this.saveToLocalStorage();
+      this.forgetConfirmedLineQuantity(cartItemId, quantity);
+      this.applyCartMutationResult(updatedCart);
     } catch (error: any) {
       console.error('Error updating cart item:', error);
-      // Use user-friendly message if available (from write-off error parsing)
-      const msg = error?.userFriendlyMessage || 
-                  error?.error?.message || 
-                  error?.message ||
-                  this.translate.instant('error_occurred');
-      
-      // Check if it's a stock error
-      const isStockError = error?.error?.code === 'insufficient_stock' ||
-                          msg.toLowerCase().includes('insufficient stock') ||
-                          msg.toLowerCase().includes('written off') ||
-                          msg.toLowerCase().includes('reservation');
-
-      this.messageService.add({
-        severity: isStockError ? 'warn' : 'error',
-        summary: isStockError ? this.translate.instant('warning') : this.translate.instant('error'),
-        detail: isStockError ? this.getInsufficientStockDetail(msg) : msg,
-        life: 5000
-      });
+      // The server kept the previous quantity: drop the optimistic one and show the real cart.
+      this.forgetConfirmedLineQuantity(cartItemId, quantity);
+      await this.reloadCartAfterFailedEdit();
+      this.showCartEditError(error);
     } finally {
       this.cartSaving = false;
     }
+  }
+
+  /** Drops unsent quantity taps (the cart they belong to is being thrown away). */
+  private discardPendingLineQuantities(): void {
+    if (this.lineQuantityFlushTimer) {
+      clearTimeout(this.lineQuantityFlushTimer);
+      this.lineQuantityFlushTimer = null;
+    }
+    this.unsentLineQuantities.clear();
+    this.desiredLineQuantities.clear();
+  }
+
+  /** Clears a line's pending quantity unless the cashier has already asked for a newer one. */
+  private forgetConfirmedLineQuantity(cartItemId: number, quantity: number): void {
+    if (this.desiredLineQuantities.get(cartItemId) === quantity) {
+      this.desiredLineQuantities.delete(cartItemId);
+    }
+  }
+
+  private async reloadCartAfterFailedEdit(): Promise<void> {
+    const cartId = this.cart?.cartId;
+    if (!cartId || !this.isOnline) {
+      return;
+    }
+    try {
+      const fresh = await firstValueFrom(await this.posService.getCart(cartId));
+      this.applyCartMutationResult(fresh);
+    } catch (reloadError) {
+      console.error('Error reloading cart after a failed edit:', reloadError);
+    }
+  }
+
+  private showCartEditError(error: any): void {
+    // Use user-friendly message if available (from write-off error parsing)
+    const msg = error?.userFriendlyMessage ||
+                error?.error?.message ||
+                error?.message ||
+                this.translate.instant('error_occurred');
+
+    // Check if it's a stock error
+    const isStockError = error?.error?.code === 'insufficient_stock' ||
+                        msg.toLowerCase().includes('insufficient stock') ||
+                        msg.toLowerCase().includes('written off') ||
+                        msg.toLowerCase().includes('reservation');
+
+    this.messageService.add({
+      severity: isStockError ? 'warn' : 'error',
+      summary: isStockError ? this.translate.instant('warning') : this.translate.instant('error'),
+      detail: isStockError ? this.getInsufficientStockDetail(msg) : msg,
+      life: 5000
+    });
   }
 
   private getManualPriceOverride(item: any): number | null {
@@ -2045,15 +2189,17 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async removeItem(item: any) {
-    if (!this.cart) return;
+    if (!this.cart || !item?.cartItemId) return;
+    const cartItemId = item.cartItemId;
+    // A pending quantity for a line being removed must not be sent after it.
+    this.desiredLineQuantities.delete(cartItemId);
+    this.unsentLineQuantities.delete(cartItemId);
     this.cartSaving = true;
     try {
-      const updated$ = await this.posService.removeCartItem(item.cartItemId);
-      const updatedCart = await firstValueFrom(updated$);
-      // Normalize cart to recalculate totals
-      this.cart = this.normalizeCartItems(updatedCart);
-      this.updateCartTracking();
-      this.saveToLocalStorage();
+      await this.enqueueCartMutation(async () => {
+        const updated$ = await this.posService.removeCartItem(cartItemId);
+        this.applyCartMutationResult(await firstValueFrom(updated$));
+      });
       this.messageService.add({
         severity: 'info',
         summary: this.translate.instant('info'),
@@ -2062,6 +2208,7 @@ export class PosComponent implements OnInit, OnDestroy {
       });
     } catch (error) {
       console.error('Error removing cart item:', error);
+      this.showCartEditError(error);
     } finally {
       this.cartSaving = false;
     }
@@ -2475,6 +2622,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   async clearCart() {
     if (!this.session) return;
+    this.discardPendingLineQuantities();
     this.cartSaving = true;
     try {
       // Cancel current active cart first so backend does not keep returning it as active.
@@ -2521,7 +2669,7 @@ export class PosComponent implements OnInit, OnDestroy {
       const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
       const carts = await firstValueFrom(holds$);
       // Normalize all hold carts
-      this.holdCarts = Array.isArray(carts) ? carts.map(cart => this.normalizeCartItems(cart)) : [];
+      this.holdCarts = Array.isArray(carts) ? carts.map(cart => this.normalizeCartItems(cart, false)) : [];
       this.holdCartsDialog = true;
     } catch (error) {
       console.error('Error loading hold carts:', error);
@@ -2547,6 +2695,7 @@ export class PosComponent implements OnInit, OnDestroy {
     }
     this.cartSaving = true;
     try {
+      await this.settleCartChanges();
       await firstValueFrom(await this.posService.holdCart(this.cart.cartId));
       const newCart$ = await this.posService.createCart(this.session.sessionId);
       this.cart = await firstValueFrom(newCart$);
@@ -2564,6 +2713,7 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   async resumeCart(cart: POSCartDTO) {
+    await this.settleCartChanges();
     if (!cart || !cart.cartId) {
       this.messageService.add({
         severity: 'error',
@@ -2704,7 +2854,7 @@ export class PosComponent implements OnInit, OnDestroy {
         try {
           const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
           const carts = await firstValueFrom(holds$);
-          this.holdCarts = Array.isArray(carts) ? carts.map(c => this.normalizeCartItems(c)) : [];
+          this.holdCarts = Array.isArray(carts) ? carts.map(c => this.normalizeCartItems(c, false)) : [];
         } catch (error) {
           console.error('Error reloading hold carts:', error);
         }
@@ -2745,7 +2895,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   viewHoldCart(cart: POSCartDTO) {
     // Show read-only view of the cart
-    this.viewedCart = this.normalizeCartItems(cart);
+    this.viewedCart = this.normalizeCartItems(cart, false);
     this.viewCartDialog = true;
   }
 
@@ -2772,7 +2922,7 @@ export class PosComponent implements OnInit, OnDestroy {
       if (this.shopId) {
         const holds$ = await this.posService.getHoldCarts(this.getShopIdForApi());
         const carts = await firstValueFrom(holds$);
-        this.holdCarts = Array.isArray(carts) ? carts.map(c => this.normalizeCartItems(c)) : [];
+        this.holdCarts = Array.isArray(carts) ? carts.map(c => this.normalizeCartItems(c, false)) : [];
       }
       if (!this.holdCarts.length) {
         this.holdCartsDialog = false;
@@ -2818,6 +2968,7 @@ export class PosComponent implements OnInit, OnDestroy {
       return;
     }
     
+    await this.settleCartChanges();
     await this.flushSummaryFieldSync();
     this.syncDiscountAndTaxFromCart();
     
@@ -2880,7 +3031,9 @@ export class PosComponent implements OnInit, OnDestroy {
     // Sync discount amount from cart
     // If discount type is Percentage, calculate the percentage value from discountAmount and subtotal
     // Otherwise, use the discount amount directly
-    if (this.discountType === 'Percentage' && this.cart.subtotal > 0 && this.cart.discountAmount > 0) {
+    if (this.discountType === 'Percentage' && this.cart.discountPercent != null) {
+      this.discountAmount = this.cart.discountPercent;
+    } else if (this.discountType === 'Percentage' && this.cart.subtotal > 0 && this.cart.discountAmount > 0) {
       // Calculate percentage: (discountAmount / subtotal) * 100
       this.discountAmount = Math.round((this.cart.discountAmount / this.cart.subtotal) * 100 * 100) / 100;
     } else {
@@ -3283,6 +3436,7 @@ export class PosComponent implements OnInit, OnDestroy {
 
   async completeCheckout() {
     if (!this.cart) return;
+    await this.settleCartChanges();
 
     if (this.checkoutPayments.length === 0) {
       this.messageService.add({
@@ -3995,7 +4149,7 @@ export class PosComponent implements OnInit, OnDestroy {
     }
     if (this.cart) {
       // Always normalize cart before saving to ensure calculations are correct
-      const normalizedCart = this.normalizeCartItems({ ...this.cart });
+      const normalizedCart = this.normalizeCartItems({ ...this.cart }, false);
       if (normalizedCart) {
         this.posStorage.saveCart(normalizedCart);
       }
@@ -4621,7 +4775,7 @@ export class PosComponent implements OnInit, OnDestroy {
             life: 8000
           });
           // Open hold carts dialog so user can manage them
-          this.holdCarts = activeHoldCarts.map(cart => this.normalizeCartItems(cart));
+          this.holdCarts = activeHoldCarts.map(cart => this.normalizeCartItems(cart, false));
           this.holdCartsDialog = true;
           return;
         }
@@ -4720,7 +4874,7 @@ export class PosComponent implements OnInit, OnDestroy {
           });
           this.closeSessionDialog = false;
           // Open hold carts dialog so user can manage them
-          this.holdCarts = activeHoldCarts.map(cart => this.normalizeCartItems(cart));
+          this.holdCarts = activeHoldCarts.map(cart => this.normalizeCartItems(cart, false));
           this.holdCartsDialog = true;
           return;
         }
@@ -5311,29 +5465,51 @@ export class PosComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.round(displayQuantity));
   }
 
-  onCartDisplayQuantityChange(item: POSCartItemDTO, displayQuantity: number) {
-    item.displayQuantity = displayQuantity;
-    this.onQuantityChange(item, displayQuantity);
-  }
-
   /**
    * Commit a typed cart quantity (fired on blur/Enter, not per keystroke) so fractional
    * input like "1.5" isn't reset to "1" mid-typing by the async cart refresh. Accepts
    * both '.' and ',' as the decimal separator and clamps to the line's min/max.
    */
-  onCartQuantityInput(item: POSCartItemDTO, raw: string): void {
+  onCartQuantityInput(item: POSCartItemDTO, raw: string, input?: HTMLInputElement): void {
     const parsed = parseFloat(String(raw ?? '').replace(',', '.'));
-    if (isNaN(parsed)) {
-      return;
+    if (!isNaN(parsed)) {
+      this.updateQuantity(item, parsed);
     }
-    this.updateQuantity(item, parsed);
+    // Rows are kept across refreshes (trackBy), so an invalid or clamped entry would otherwise
+    // stay visible in the box while the line uses another quantity.
+    if (input) {
+      input.value = String(this.getCartLineDisplayQuantity(item));
+    }
   }
 
+  /**
+   * Applies the new quantity on screen immediately (line + totals) and sends it after a short
+   * pause, so a burst of +/- taps becomes a single request carrying the final quantity.
+   */
   updateQuantity(item: POSCartItemDTO, newDisplayQuantity: number) {
+    if (!this.cart || !item?.cartItemId) {
+      return;
+    }
     const cap = this.getCartLineMaxQuantity(item);
     const min = this.getCartLineQuantityMin(item);
-    const quantity = Math.max(min, Math.min(newDisplayQuantity, cap));
-    this.onCartDisplayQuantityChange(item, quantity);
+    if (newDisplayQuantity > cap) {
+      this.messageService.add({
+        severity: 'warn',
+        summary: this.translate.instant('warning'),
+        detail: this.getInsufficientStockDetail(undefined, cap, newDisplayQuantity),
+        life: 3000
+      });
+    }
+    // Rounded so repeated 0.1 steps don't drift into 0.30000000000000004.
+    const quantity = Math.round(Math.max(min, Math.min(newDisplayQuantity, cap)) * 1000) / 1000;
+    if (!(quantity > 0) || quantity === this.getCartLineDisplayQuantity(item)) {
+      return;
+    }
+    this.desiredLineQuantities.set(item.cartItemId, quantity);
+    this.unsentLineQuantities.add(item.cartItemId);
+    this.applyLocalLineQuantity(item, quantity);
+    this.recalculateCartFromLines();
+    this.scheduleLineQuantityFlush();
   }
 
   addPayment(amount: number) {
@@ -5628,11 +5804,12 @@ export class PosComponent implements OnInit, OnDestroy {
   /** Persist a new portion fraction on the cart line; refreshes totals from the server response. */
   async setCartLinePortion(item: POSCartItemDTO, fraction: number): Promise<void> {
     if (!item?.cartItemId || !this.isOnline) return;
+    const cartItemId = item.cartItemId;
     try {
-      const updated$ = await this.posService.updateCartItem(item.cartItemId, undefined, undefined, undefined, fraction);
-      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
-      this.updateCartTracking();
-      this.saveToLocalStorage();
+      await this.enqueueCartMutation(async () => {
+        const updated$ = await this.posService.updateCartItem(cartItemId, undefined, undefined, undefined, fraction);
+        this.applyCartMutationResult(await firstValueFrom(updated$));
+      });
     } catch (e: any) {
       console.error('Failed to update cart line portion', e);
       this.messageService.add({
@@ -5645,31 +5822,43 @@ export class PosComponent implements OnInit, OnDestroy {
   }
 
   /** Commit a manually typed unit price for a cart line (only when overrides are allowed). */
-  onCartUnitPriceInput(item: POSCartItemDTO, raw: string): void {
+  onCartUnitPriceInput(item: POSCartItemDTO, raw: string, input?: HTMLInputElement): void {
     if (!this.priceOverrideAllowed) {
       return;
     }
     const parsed = parseFloat(String(raw ?? '').replace(',', '.'));
     if (isNaN(parsed) || parsed < 0) {
+      this.resetUnitPriceInput(item?.cartItemId, input);
       return;
     }
-    void this.updateCartItemPrice(item, parsed);
+    void this.updateCartItemPrice(item, parsed, input);
   }
 
-  /** Persist a unit-price override for a cart line via the cart API. */
-  async updateCartItemPrice(item: any, newPrice: number): Promise<void> {
-    if (!this.priceOverrideAllowed || !this.cart || !item) {
+  /**
+   * Persist a unit-price override for a cart line via the cart API. The line keeps its server
+   * price until the server accepts the new one: a rejected price (e.g. below the margin guard)
+   * used to stay stuck on the line and was re-sent with every later +/- tap, failing each one.
+   */
+  async updateCartItemPrice(item: any, newPrice: number, input?: HTMLInputElement): Promise<void> {
+    if (!this.priceOverrideAllowed || !this.cart || !item?.cartItemId) {
       return;
     }
-    item.priceOverride = newPrice;
-    item.manualPriceOverride = true;
+    const cartItemId = item.cartItemId;
     this.cartSaving = true;
     try {
-      const apiQuantity = this.toApiQuantity(item, this.getCartLineDisplayQuantity(item));
-      const updated$ = await this.posService.updateCartItem(item.cartItemId, apiQuantity, newPrice);
-      this.cart = this.normalizeCartItems(await firstValueFrom(updated$));
-      this.updateCartTracking();
-      this.saveToLocalStorage();
+      await this.enqueueCartMutation(async () => {
+        const line = this.cart?.items?.find(i => i.cartItemId === cartItemId);
+        if (!line) {
+          return;
+        }
+        // Carry any quantity the cashier set but hasn't been sent yet in the same request.
+        const quantity = this.desiredLineQuantities.get(cartItemId) ?? this.getCartLineDisplayQuantity(line);
+        this.unsentLineQuantities.delete(cartItemId);
+        const updated$ = await this.posService.updateCartItem(cartItemId, this.toApiQuantity(line, quantity), newPrice);
+        const updatedCart = await firstValueFrom(updated$);
+        this.forgetConfirmedLineQuantity(cartItemId, quantity);
+        this.applyCartMutationResult(updatedCart);
+      });
     } catch (error: any) {
       console.error('Error updating cart item price:', error);
       this.messageService.add({
@@ -5680,9 +5869,16 @@ export class PosComponent implements OnInit, OnDestroy {
       });
     } finally {
       this.cartSaving = false;
+      this.resetUnitPriceInput(cartItemId, input);
+    }
+  }
+
+  /** Shows the line's real unit price in its box (rows are reused across refreshes). */
+  private resetUnitPriceInput(cartItemId: number | undefined, input?: HTMLInputElement): void {
+    const line = this.cart?.items?.find(i => i.cartItemId === cartItemId);
+    if (input && line) {
+      input.value = String(line.pricePerUnit ?? '');
     }
   }
 
 }
-
-

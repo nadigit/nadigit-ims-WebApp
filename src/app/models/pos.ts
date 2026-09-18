@@ -45,6 +45,8 @@ export interface POSCartItemDTO {
   productId: number;
   productReference: string;
   productName: string;
+  /** Product's main image (relative /api/uploads/... URL). */
+  imageUrl?: string;
   /** Storage quantity (internal). */
   quantity: number;
   /** Human-readable quantity for fractional/prepaid lines. */
@@ -77,6 +79,8 @@ export interface POSCartDTO {
   items: POSCartItemDTO[];
   subtotal: number;
   discountAmount: number;
+  /** The percentage as entered (e.g. 10) when discountType is Percentage. */
+  discountPercent?: number | null;
   taxAmount: number;
   totalAmount: number;
   discountType?: DiscountType;
