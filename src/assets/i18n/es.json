@@ -6041,6 +6041,8 @@
   "line_rule_label_placeholder": "p. ej. Descuento crédito de vísceras",
   "menu_advanced_group": "Avanzado",
   "line_options_line_invalid": "Seleccione las opciones requeridas para esta línea.",
+  "saving_order_lines": "Guardando {{count}} líneas…",
+  "large_order_save_notice": "Este pedido tiene {{count}} líneas. Guardar tarda unos segundos: mantenga el formulario abierto hasta que termine.",
   "line_options_required_for_line": "Complete las opciones requeridas para «{{product}}».",
   "line_option_max_reached": "Puede seleccionar como máximo {{max}} opción(es) aquí.",
   "line_options_none_for_product": "No hay opciones disponibles para este artículo.",

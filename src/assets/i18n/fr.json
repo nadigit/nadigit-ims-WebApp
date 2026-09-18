@@ -6035,6 +6035,8 @@
   "line_rule_label_placeholder": "ex. Déduction crédit d'abats",
   "menu_advanced_group": "Avancé",
   "line_options_line_invalid": "Sélectionnez les options requises pour cette ligne.",
+  "saving_order_lines": "Enregistrement de {{count}} lignes…",
+  "large_order_save_notice": "Cette commande compte {{count}} lignes. L'enregistrement prend quelques secondes - laissez le formulaire ouvert jusqu'à la fin.",
   "line_options_required_for_line": "Veuillez compléter les options requises pour « {{product}} ».",
   "line_option_max_reached": "Vous pouvez sélectionner au maximum {{max}} option(s) ici.",
   "line_options_none_for_product": "Aucune option disponible pour cet article.",

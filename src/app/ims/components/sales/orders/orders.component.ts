@@ -106,6 +106,37 @@ interface LazyLoadEventExt extends LazyLoadEvent {
 import { resolvePublicAssetUrl } from 'src/app/shared/product-image.utils';
 import { httpErrorMessage } from 'src/app/shared/http-error-message';
 
+/**
+ * Everything one order line displays. The row template used to ask the component some fifteen
+ * questions per line - badge, options, price source, units, stock - and Angular asked them again
+ * for every line on every change-detection pass, so a 150-line order paid for two thousand calls
+ * (several of them building arrays and translating strings) each time a key was pressed. The
+ * answers are computed once, when that line changes, and the template only reads them.
+ */
+interface OrderLineView {
+  badgeLabel: string;
+  badgeSeverity: string;
+  badgeIcon: string;
+  variantSummary: string;
+  variantMissing: boolean;
+  hasOptions: boolean;
+  optionsCount: number;
+  optionsLabel: string;
+  optionsSummary: string[];
+  optionsValid: boolean;
+  portionFraction: number;
+  priceSourceLabel: string;
+  priceSourceSeverity: string;
+  quantityMin: number;
+  quantityMax: number | undefined;
+  quantityDecimals: number;
+  quantityStep: number;
+  quantityUnit: string;
+  tracksStock: boolean;
+  remainingStock: string;
+  stockUnit: string;
+}
+
 @Component({
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.css', '../sales.component.css'],
@@ -310,6 +341,10 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   payment: Payment = {};
 
   isSavingPayment: boolean = false;
+  /** The Save button has always bound a spinner to this; the flag itself was never declared. */
+  isSaving: boolean = false;
+  /** Past this many lines, saving takes long enough that the form says so. */
+  readonly largeOrderLineThreshold = 50;
 
   paymentMethods: any;
 
@@ -461,6 +496,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   private processFlagsSub?: Subscription;
   private configSavedSub?: Subscription;
+  private langSub?: Subscription;
 
   constructor(private messageService: MessageService,
     private orderService: OrderService,
@@ -561,6 +597,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       this.applySalesProcessFlagsAfterSettingsSave();
     });
 
+    // Line rows hold translated text now, so they are rebuilt when the language changes.
+    this.langSub = this.translate.onLangChange.subscribe(() => this.refreshAllLineViews());
     this.configSavedSub = this.configService.configurationSaved$.subscribe((key) => {
       if (!key) {
         return;
@@ -631,6 +669,126 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   ngOnDestroy(): void {
     this.processFlagsSub?.unsubscribe();
     this.configSavedSub?.unsubscribe();
+    this.langSub?.unsubscribe();
+    this.cancelPriceRefreshes();
+  }
+
+  /** Quantity keystrokes arrive one per character; the pricing call waits for a pause. */
+  private readonly priceRefreshDebounceMs = 250;
+  private readonly priceRefreshTimers = new Map<number, ReturnType<typeof setTimeout>>();
+  private readonly priceRefreshSeq = new Map<number, number>();
+
+  /**
+   * Lines are identified by product, so PrimeNG reuses a row instead of rebuilding all of them when
+   * one line changes. At 150 lines that is the difference between a keystroke and a freeze.
+   */
+  trackLine = (_index: number, product: Product): number | string => product?.productId ?? _index;
+
+  /**
+   * A line may have no badge or no unit of measure. The translate pipe passed an empty key through;
+   * translate.instant throws on one, and the throw used to take the rest of the add with it.
+   */
+  private lineLabel(key: string | null | undefined): string {
+    return key ? this.translate.instant(key) : '';
+  }
+
+  /** Recomputes what one line shows. Called when that line changes, not when the table renders. */
+  private refreshLineView(product: any): void {
+    if (!product) {
+      return;
+    }
+    const quantity = product.orderItemQuantity;
+    const tracksStock = this.isProduct(product);
+    const available = this.getAvailableQuantity(product);
+    const optionsCount = this.lineOptionsCount(product);
+    const priceSource = this.getPriceSource(product);
+    const optionsLabel = optionsCount > 0
+      ? this.translate.instant('line_option_options') + ' (' + optionsCount + ')'
+      : this.translate.instant('line_option_add_option');
+    const view: OrderLineView = {
+      badgeLabel: this.lineLabel(this.getProductBadgeKey(product)),
+      badgeSeverity: this.getProductBadgeSeverity(product),
+      badgeIcon: this.getProductBadgeIcon(product),
+      variantSummary: this.activityProfileService.isFashionProfile ? this.getProductVariantSummary(product) : '',
+      variantMissing: this.isFashionVariantMissing(product),
+      hasOptions: this.hasLineOptions(product),
+      optionsCount,
+      optionsLabel,
+      optionsSummary: optionsCount > 0 ? this.lineOptionsSummary(product) : [],
+      optionsValid: this.lineOptionsValid(product),
+      portionFraction: this.getLinePortionFraction(product),
+      priceSourceLabel: this.getPriceSourceLabel(priceSource),
+      priceSourceSeverity: this.getPriceSourceSeverity(priceSource),
+      quantityMin: this.lineQuantityMin(product),
+      quantityMax: tracksStock ? available : undefined,
+      quantityDecimals: this.quantityInputDecimals(product),
+      quantityStep: this.quantityInputStep(product),
+      quantityUnit: this.lineLabel(this.getMeasureUnit(product, quantity)),
+      tracksStock,
+      remainingStock: this.formatLineQuantity(product, available - (quantity || 0)),
+      stockUnit: this.lineLabel(this.getMeasureUnit(product)),
+    };
+    // Hidden from JSON.stringify: updateOrder posts these product objects as they are, and display
+    // data has no business on the wire.
+    Object.defineProperty(product, 'lineView', { value: view, enumerable: false, configurable: true, writable: true });
+  }
+
+  /** Row display must never be able to stop a line being added or priced. */
+  private safeRefreshLineView(product: any): void {
+    try {
+      this.refreshLineView(product);
+    } catch (e) {
+      console.warn('Could not build the display data for an order line', e);
+    }
+  }
+
+  /** After something that changes every line: a new customer's prices, a language, an edit loaded. */
+  private refreshAllLineViews(): void {
+    (this.targetProducts || []).forEach((product) => this.safeRefreshLineView(product));
+    this.updateLineVirtualisation();
+  }
+
+  /** From this many lines on, the table renders only the rows in view. */
+  private readonly virtualLineThreshold = 40;
+  /**
+   * The height the virtual scroller assumes for every row. It is a starting value: the real one
+   * depends on the theme's padding and input sizes, so it is read from the first rendered row.
+   */
+  lineRowHeight = 77;
+  useVirtualLines = false;
+  @ViewChild('lineTable', { read: ElementRef }) private lineTableRef?: ElementRef<HTMLElement>;
+
+  /**
+   * A long order puts every one of its lines in the page, and the browser then styles, lays out and
+   * change-detects all of them for every keystroke. Rendering only what is on screen keeps that work
+   * flat, but it holds every row to lineRowHeight - so it is used only where rows are plain: line
+   * options, portions and fashion variant hints each add a line of their own to a row.
+   */
+  private updateLineVirtualisation(): void {
+    const lines: any[] = this.targetProducts || [];
+    const wasVirtual = this.useVirtualLines;
+    this.useVirtualLines = lines.length >= this.virtualLineThreshold
+      && !this.portionSelectionEnabled
+      && !this.activityProfileService.isFashionProfile
+      && lines.every((line) => !line?.lineView?.hasOptions);
+    if (this.useVirtualLines && !wasVirtual) {
+      this.measureLineRowHeight();
+    }
+  }
+
+  /**
+   * A row taller or shorter than the scroller believes makes it place rows wrongly - the last lines
+   * become unreachable or the list jumps - so the size it uses is the size the browser rendered.
+   */
+  private measureLineRowHeight(): void {
+    setTimeout(() => {
+      const row = this.lineTableRef?.nativeElement.querySelector<HTMLElement>('tr.order-line-row');
+      const height = row?.offsetHeight ?? 0;
+      if (height > 0 && Math.abs(height - this.lineRowHeight) > 1) {
+        this.lineRowHeight = height;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   /** After settings save: sync document-chain UI on this screen and reload list. */
@@ -1025,6 +1183,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       await this.updateBankAccountFieldVisibility();
       await this.loadCreditInfo();
     }
+    this.calculateTotalAmount();
   }
 
   async loadCreditInfo() {
@@ -1082,6 +1241,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   async loadCustomerPricingData() {
     if (!this.order.customer?.customerId) {
       this.customerPricing = null;
+      this.refreshAllLineViews();
       return;
     }
 
@@ -1091,6 +1251,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       const pricingData = await firstValueFrom(pricing$);
       
       this.customerPricing = pricingData;
+      this.refreshAllLineViews();
       console.log('Loaded customer pricing data:', pricingData);
       
       // Show notification if customer has special pricing
@@ -1186,6 +1347,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   setLinePortionFraction(product: any, fraction: number): void {
     product['orderItemPortionFraction'] = fraction;
+    this.safeRefreshLineView(product);
   }
 
   async loadSalesStockConfig() {
@@ -1385,6 +1547,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         product.orderItemPricePerUnit = effectivePrice;
       }
     });
+    this.refreshAllLineViews();
     this.calculateTotalAmount();
     this.cdr.detectChanges();
   }
@@ -1405,6 +1568,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       // Reset payment amount to full amount
       this.payment.amount = this.getTotalWithoutCredit();
     }
+    this.calculateTotalAmount();
   }
 
   onCreditAmountChange(): void {
@@ -1417,6 +1581,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       // Update payment amount
       this.payment.amount = this.getRemainingAfterCredit();
     }
+    this.calculateTotalAmount();
   }
 
   getMaxCreditToUse(): number {
@@ -1645,6 +1810,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
             if (seq !== this.taxResolveSeq) return;
             if (res && typeof res.effectiveRate === 'number' && res.mode === 'RULES') {
               this.taxRate = res.effectiveRate;
+              // The footer reads stored figures now, so the resolved rate has to be folded in.
+              this.calculateTotalAmount();
+              this.cdr.detectChanges();
             }
           },
           error: () => {
@@ -1734,6 +1902,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   initializePickList(): void {
     this.sourceProducts = this.getSourceProducts();
     this.targetProducts = this.getTargetProducts();
+    this.refreshAllLineViews();
+    this.calculateTotalAmount();
   }
 
   getSourceProducts(): Product[] {
@@ -2035,6 +2205,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     this.showPaymentSection = false;
     this.payment = {};
     this.submitted = false;
+    this.cancelPriceRefreshes();
 
     if (releaseOnServer && ctx) {
       void this.stockReservationService
@@ -2152,6 +2323,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   async saveOrder() {
     this.submitted = true;
+    // The rows show their validation hints only once submitted.
+    this.refreshAllLineViews();
 
     if (this.showPaymentSection) {
       const paymentValid = await this.validatePayment();
@@ -2306,6 +2479,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       })));
     }
 
+    this.isSaving = true;
     try {
       let savedOrder: Order;
 
@@ -2406,6 +2580,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     } catch (error: any) {
       console.error('Error in saveOrder:', error);
       this.showOrderSaveError(error);
+    } finally {
+      this.isSaving = false;
     }
   }
 
@@ -3982,6 +4158,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       await this.getAllOptionSets();
       const sets = this.applicableOptionSets(product);
       product['lineOptionSets'] = sets;
+      this.safeRefreshLineView(product);
       if (!preserveSelections || !product['lineOptionSelections']) {
         // On edit, distribute previously-saved option ids into their sets; otherwise seed defaults.
         const pending: number[] | undefined = product['__pendingSelectedOptionIds'];
@@ -4001,6 +4178,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         product['lineOptionSelections'] = selections;
         delete product['__pendingSelectedOptionIds'];
       }
+      this.safeRefreshLineView(product);
       this.cdr.detectChanges();
     } catch (e: any) {
       // Endpoint absent (older backend) or transient error: behave as before (no options control).
@@ -4008,6 +4186,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         console.warn('Could not load line option sets for product', pid, e);
       }
       product['lineOptionSets'] = [];
+      this.safeRefreshLineView(product);
     }
   }
 
@@ -4108,6 +4287,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   closeLineOptionsDialog(): void {
     this.optionsDialogVisible = false;
+    this.safeRefreshLineView(this.optionsLine);
     this.optionsLine = null;
   }
 
@@ -4343,6 +4523,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       // If percentage, convert it to an amount
       this.order.discount = Math.min(this.order.discount, 100); // Ensure percentage does not exceed 100%
     }
+    this.calculateTotalAmount();
   }
 
   getTotalWithoutCredit(): number {
@@ -4356,6 +4537,14 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     return taxableAmount + taxToAdd + transportAmount + additionalCharges;
   }
 
+  /**
+   * The figures the order footer shows. Ten bindings used to ask for them, and each answer walked
+   * every line - and, in rules-based tax mode, serialised every line to decide whether to re-resolve
+   * the rate. Angular re-evaluates bindings on every change-detection pass, so that bill was paid
+   * several times per keystroke and grew with the order. They are computed when something changes.
+   */
+  orderTotals = { subtotal: 0, discount: 0, tax: 0, total: 0, creditToUse: 0, remainingAfterCredit: 0 };
+
   calculateTotalAmount(): number {
     this.maybeRefreshRuleTaxRate();
     // Recalculate credit usage when total changes
@@ -4367,12 +4556,23 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     const subtotal = this.getSubtotal();
     const discountAmount = this.calculateDiscountAmount();
     const taxableAmount = subtotal - discountAmount;
+    const tax = this.calculateTax(taxableAmount);
     // In TTC mode the tax is already inside the goods amount, so it is not added again.
-    const taxToAdd = this.taxInclusive ? 0 : this.calculateTax(taxableAmount);
+    const taxToAdd = this.taxInclusive ? 0 : tax;
     const transportAmount = this.order.transportAmount || 0;
     const additionalCharges = this.order.additionalChargesAmount || 0;
+    const total = taxableAmount + taxToAdd + transportAmount + additionalCharges;
 
-    return taxableAmount + taxToAdd + transportAmount + additionalCharges;
+    const creditToUse = this.getCreditToUse();
+    this.orderTotals = {
+      subtotal,
+      discount: discountAmount,
+      tax,
+      total,
+      creditToUse,
+      remainingAfterCredit: Math.max(0, total - creditToUse),
+    };
+    return total;
   }
 
 
@@ -4897,6 +5097,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       };
 
       this.targetProducts = [...this.targetProducts, productToAdd];
+      this.safeRefreshLineView(productToAdd);
+      this.updateLineVirtualisation();
       void this.loadOptionSetsForLine(productToAdd);
 
       this.messageService.add({
@@ -4911,13 +5113,13 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         const availableQty = this.getAvailableQuantity(product);
         if (existingProduct.orderItemQuantity < availableQty) {
           existingProduct.orderItemQuantity += this.quantityInputStep(existingProduct);
+        this.safeRefreshLineView(existingProduct);
           // Recalculate price when quantity changes (if not manually overridden)
           if (!existingProduct['orderItemPricePerUnitManual']) {
             // Use async method to get price for new quantity
             this.updateProductPriceForQuantity(existingProduct);
           }
-          this.targetProducts = [...this.targetProducts];
-
+  
           this.messageService.add({
             severity: 'info',
             summary: this.translate.instant('info'),
@@ -4935,12 +5137,12 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       } else {
         // For services, just increase quantity without stock check
         existingProduct.orderItemQuantity += this.quantityInputStep(existingProduct);
+        this.safeRefreshLineView(existingProduct);
         // Recalculate price when quantity changes (if not manually overridden)
         if (!existingProduct['orderItemPricePerUnitManual']) {
           // Use async method to get price for new quantity
           this.updateProductPriceForQuantity(existingProduct);
         }
-        this.targetProducts = [...this.targetProducts];
 
         this.messageService.add({
           severity: 'info',
@@ -4960,6 +5162,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
 
   removeProductFromOrder(product: Product): void {
     this.targetProducts = this.targetProducts.filter(p => p.productId !== product.productId);
+    this.updateLineVirtualisation();
 
     // Convert to OrderItem for orderItems array
     this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
@@ -5013,11 +5216,35 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
   onOrderQuantityChange(product: Product): void {
     // Recalculate price if quantity changed and price wasn't manually overridden
     if (!product['orderItemPricePerUnitManual']) {
-      // Use async method to get price for new quantity
-      this.updateProductPriceForQuantity(product);
+      // Once the typing stops: a quantity is typed character by character, and each character used
+      // to cost a pricing round trip whose answer re-rendered the whole order.
+      this.schedulePriceRefresh(product);
     }
     this.updateProductSubtotal(product);
     this.scheduleSyncCheckoutReservations();
+  }
+
+  /** Asks for the price of a line once the quantity has stopped changing. */
+  private schedulePriceRefresh(product: Product): void {
+    const id = product.productId;
+    if (id == null) {
+      void this.updateProductPriceForQuantity(product);
+      return;
+    }
+    const pending = this.priceRefreshTimers.get(id);
+    if (pending) {
+      clearTimeout(pending);
+    }
+    this.priceRefreshTimers.set(id, setTimeout(() => {
+      this.priceRefreshTimers.delete(id);
+      void this.updateProductPriceForQuantity(product);
+    }, this.priceRefreshDebounceMs));
+  }
+
+  /** Drops every pending price refresh (dialog closed, component destroyed). */
+  private cancelPriceRefreshes(): void {
+    this.priceRefreshTimers.forEach((timer) => clearTimeout(timer));
+    this.priceRefreshTimers.clear();
   }
 
   /**
@@ -5025,6 +5252,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
    */
   async updateProductPriceForQuantity(product: Product): Promise<void> {
     if (!product.productId) return;
+    // A later quantity may be typed while this request is in flight; only the newest answer counts.
+    const refreshId = (this.priceRefreshSeq.get(product.productId) ?? 0) + 1;
+    this.priceRefreshSeq.set(product.productId, refreshId);
 
     // The pricing API resolves per storage-unit quantity (an int, like order-save does). For
     // fractional/weight products the line holds a display value (e.g. 0.013 kg), so convert to
@@ -5037,6 +5267,9 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
     // If customer pricing is available, try to get price for this quantity
     if (this.order.customer?.customerId) {
       const pricingResult = await this.getProductPriceForQuantity(product.productId, quantity);
+      if (this.priceRefreshSeq.get(product.productId) !== refreshId) {
+        return;
+      }
       if (pricingResult !== null) {
         product.orderItemPricePerUnit = pricingResult.price;
         
@@ -5054,7 +5287,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
           this.customerPricing.prices[product.productId] = pricingResult.price;
         }
         
-        this.targetProducts = [...this.targetProducts];
+        this.safeRefreshLineView(product);
         this.calculateTotalAmount();
         this.cdr.detectChanges();
         return;
@@ -5082,8 +5315,8 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
         this.customerPricing.priceSources[product.productId] = 'DEFAULT';
       }
     }
-    
-    this.targetProducts = [...this.targetProducts];
+
+    this.safeRefreshLineView(product);
     this.calculateTotalAmount();
     this.cdr.detectChanges();
   }
@@ -5112,7 +5345,7 @@ export class OrdersComponent implements OnInit, OnChanges, AfterViewInit, OnDest
       }
     }
 
-    this.targetProducts = [...this.targetProducts];
+    this.safeRefreshLineView(product);
     this.orderItems = this.convertProductsToOrderItems(this.targetProducts);
     this.calculateTotalAmount();
   }

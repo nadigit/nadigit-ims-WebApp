@@ -351,7 +351,10 @@
 										</div>
 
 										<div class="selected-products-card">
-											<p-table [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+											<p-table #lineTable [size]="'small'" class="selected-products-table" [value]="targetProducts" dataKey="productId"
+												[class.order-lines--virtual]="useVirtualLines"
+												[rowTrackBy]="trackLine"
+												[virtualScroll]="useVirtualLines" [virtualScrollItemSize]="lineRowHeight"
 												[scrollable]="targetProducts.length > 4" scrollHeight="280px">
 												<ng-template pTemplate="header">
 													<tr>
@@ -371,41 +374,41 @@
 																	class="order-line-product__image" />
 																<div class="order-line-product__body">
 																	<div class="order-line-product__name-row">
-																		<span class="order-line-product__name">{{ product.name }}</span>
-																		<p-tag [value]="getProductBadgeKey(product) | translate"
-																			[severity]="getProductBadgeSeverity(product)"
-																			[icon]="getProductBadgeIcon(product)"
+																		<span class="order-line-product__name" [attr.title]="product.name">{{ product.name }}</span>
+																		<p-tag [value]="product.lineView?.badgeLabel"
+																			[severity]="product.lineView?.badgeSeverity"
+																			[icon]="product.lineView?.badgeIcon"
 																			styleClass="text-xs">
 																		</p-tag>
 																	</div>
 																	<div class="order-line-product__meta">{{ product.category?.categoryName || 'N/A' }}</div>
-																	<small *ngIf="activityProfileService.isFashionProfile && getProductVariantSummary(product)"
+																	<small *ngIf="product.lineView?.variantSummary"
 																		class="order-line-product__hint">
-																		{{ 'variant' | translate }}: <strong>{{ getProductVariantSummary(product) }}</strong>
+																		{{ 'variant' | translate }}: <strong>{{ product.lineView?.variantSummary }}</strong>
 																	</small>
-																	<small *ngIf="submitted && isFashionVariantMissing(product)"
+																	<small *ngIf="submitted && product.lineView?.variantMissing"
 																		class="order-line-product__hint order-line-product__hint--error">
 																		<i class="pi pi-exclamation-circle mr-1"></i>
 																		{{ 'profile_mode_fashion_order_variant_required' | translate }}
 																	</small>
 																	<!-- Sale-line options (components/cuts) -->
-																	<div class="order-line-options" *ngIf="hasLineOptions(product)">
+																	<div class="order-line-options" *ngIf="product.lineView?.hasOptions">
 																		<button pButton pRipple type="button"
 																			class="p-button-sm p-button-outlined order-line-options__btn"
 																			icon="pi pi-sliders-h"
-																			[label]="lineOptionsCount(product) > 0 ? (('line_option_options' | translate) + ' (' + lineOptionsCount(product) + ')') : ('line_option_add_option' | translate)"
+																			[label]="product.lineView?.optionsLabel"
 																			(click)="openLineOptionsDialog(product)"></button>
-																		<span class="order-line-options__chips" *ngIf="lineOptionsCount(product) > 0">
-																			<p-tag *ngFor="let lbl of lineOptionsSummary(product)" [value]="lbl" severity="info" styleClass="text-xs"></p-tag>
+																		<span class="order-line-options__chips" *ngIf="product.lineView?.optionsCount">
+																			<p-tag *ngFor="let lbl of product.lineView?.optionsSummary" [value]="lbl" severity="info" styleClass="text-xs"></p-tag>
 																		</span>
-																		<small class="order-line-product__hint order-line-product__hint--error" *ngIf="submitted && !lineOptionsValid(product)">
+																		<small class="order-line-product__hint order-line-product__hint--error" *ngIf="submitted && product.lineView && !product.lineView.optionsValid">
 																			<i class="pi pi-exclamation-circle mr-1"></i>{{ 'line_options_line_invalid' | translate }}
 																		</small>
 																	</div>
 																	<!-- Portion selector (whole / half / quarter / eighth) -->
 																	<div class="order-line-portion" *ngIf="portionSelectionEnabled">
 																		<span class="order-line-product__hint mr-1">{{ 'portion' | translate }}:</span>
-																		<p-selectButton [options]="portionOptions" [ngModel]="getLinePortionFraction(product)"
+																		<p-selectButton [options]="portionOptions" [ngModel]="product.lineView?.portionFraction"
 																			(onChange)="setLinePortionFraction(product, $event.value)" [ngModelOptions]="{ standalone: true }"
 																			optionLabel="label" optionValue="value" [allowEmpty]="false"
 																			styleClass="order-line-portion__btns"></p-selectButton>
@@ -423,8 +426,8 @@
 																	[ngClass]="{'ng-invalid ng-dirty': submitted && !product.orderItemPricePerUnit}">
 																</p-inputNumber>
 																<div class="order-line-price-meta">
-																	<p-tag [value]="getPriceSourceLabel(getPriceSource(product))"
-																		[severity]="getPriceSourceSeverity(getPriceSource(product))"
+																	<p-tag [value]="product.lineView?.priceSourceLabel"
+																		[severity]="product.lineView?.priceSourceSeverity"
 																		styleClass="text-xs">
 																	</p-tag>
 																	<i *ngIf="!priceOverrideAllowed"
@@ -439,25 +442,25 @@
 															<div class="order-line-input order-line-input--qty">
 																<p-inputNumber [(ngModel)]="product.orderItemQuantity"
 																	mode="decimal"
-																	[min]="lineQuantityMin(product)"
-																	[max]="isProduct(product) ? getAvailableQuantity(product) : undefined"
+																	[min]="product.lineView?.quantityMin"
+																	[max]="product.lineView?.quantityMax"
 																	[minFractionDigits]="0"
-																	[maxFractionDigits]="quantityInputDecimals(product)"
-																	[step]="quantityInputStep(product)"
+																	[maxFractionDigits]="product.lineView?.quantityDecimals"
+																	[step]="product.lineView?.quantityStep"
 																	[useGrouping]="false"
 																	styleClass="w-full"
 																	(onInput)="onOrderQuantityChange(product)"
-																	[ngClass]="{'ng-invalid ng-dirty': submitted && (!product.orderItemQuantity || product.orderItemQuantity < lineQuantityMin(product))}">
+																	[ngClass]="{'ng-invalid ng-dirty': submitted && (!product.orderItemQuantity || product.orderItemQuantity < (product.lineView?.quantityMin || 0))}">
 																</p-inputNumber>
 																<span class="order-line-input__unit">
-																	{{ getMeasureUnit(product, product.orderItemQuantity) | translate }}
+																	{{ product.lineView?.quantityUnit }}
 																</span>
 															</div>
 														</td>
 														<td class="col-stock available-quantity" [attr.data-label]="'stock_available' | translate">
-															<span *ngIf="isProduct(product); else noStockTracking" class="order-line-stock">
-																{{ formatLineQuantity(product, getAvailableQuantity(product) - (product.orderItemQuantity || 0)) }}
-																<span class="order-line-stock__unit">{{ getMeasureUnit(product) | translate }}</span>
+															<span *ngIf="product.lineView?.tracksStock; else noStockTracking" class="order-line-stock">
+																{{ product.lineView?.remainingStock }}
+																<span class="order-line-stock__unit">{{ product.lineView?.stockUnit }}</span>
 															</span>
 															<ng-template #noStockTracking>
 																<p-tag value="{{ 'no_inventory_tracking' | translate }}" severity="secondary"
@@ -490,6 +493,10 @@
 										</div>
 									</div>
 								</div>
+								<app-page-note *ngIf="targetProducts.length >= largeOrderLineThreshold" icon="pi-clock"
+									class="mt-3 mb-0">
+									{{ 'large_order_save_notice' | translate:{ count: targetProducts.length } }}
+								</app-page-note>
 							</section>
 						</div>
 					</div>
@@ -545,7 +552,7 @@
 
 							<div class="order-summary-row">
 								<span>{{ 'subtotal' | translate }}</span>
-								<span>{{ currency }} {{ getSubtotal() | number:'1.2-2' }}</span>
+								<span>{{ currency }} {{ orderTotals.subtotal | number:'1.2-2' }}</span>
 							</div>
 
 							<!-- Discount Section -->
@@ -563,7 +570,7 @@
 										<p-inputNumber [(ngModel)]="order.discount"
 											[mode]="discountType === 'Percentage' ? 'decimal' : 'currency'"
 											[currency]="currency" [min]="0"
-											[max]="discountType === 'Percentage' ? 100 : getSubtotal()"
+											[max]="discountType === 'Percentage' ? 100 : orderTotals.subtotal"
 											(onInput)="calculateTotalAmount()"
 											[suffix]="discountType === 'Percentage' ? '%' : ''">
 										</p-inputNumber>
@@ -572,7 +579,7 @@
 									<div class="order-summary-row order-summary-row--discount" *ngIf="order.discount > 0">
 										<span>{{ 'discount_applied' | translate }}</span>
 										<span class="order-summary-row__discount">
-											-{{ currency }} {{ calculateDiscountAmount() | number:'1.2-2' }}
+											-{{ currency }} {{ orderTotals.discount | number:'1.2-2' }}
 										</span>
 									</div>
 								</p-accordionTab>
@@ -596,7 +603,7 @@
 
 									<div class="summary-row" *ngIf="taxEnabled">
 										<span>{{ 'tax_amount' | translate }}:</span>
-										<span>{{ currency }} {{ calculateTax(getSubtotal() - calculateDiscountAmount())
+										<span>{{ currency }} {{ orderTotals.tax
 											|
 											number:'1.2-2' }}</span>
 									</div>
@@ -622,7 +629,7 @@
 							<div class="order-summary-total">
 								<span>{{ 'total' | translate }}</span>
 								<span class="order-summary-total__amount">
-									{{ currency }} {{ calculateTotalAmount() | number:'1.2-2' }}
+									{{ currency }} {{ orderTotals.total | number:'1.2-2' }}
 								</span>
 							</div>
 
@@ -703,15 +710,15 @@
 										<h5 class="mb-2">{{ 'payment_breakdown' | translate }}</h5>
 										<div class="breakdown-item flex justify-content-between mb-1">
 											<span>{{ 'order_total' | translate }}:</span>
-											<span class="font-semibold">{{ getTotalWithoutCredit() | currency:currency:'symbol':'1.2-2' }}</span>
+											<span class="font-semibold">{{ orderTotals.total | currency:currency:'symbol':'1.2-2' }}</span>
 										</div>
 										<div class="breakdown-item flex justify-content-between mb-1">
 											<span class="text-green-600">{{ 'credit_to_use' | translate }}:</span>
-											<span class="font-semibold text-green-600">-{{ getCreditToUse() | currency:currency:'symbol':'1.2-2' }}</span>
+											<span class="font-semibold text-green-600">-{{ orderTotals.creditToUse | currency:currency:'symbol':'1.2-2' }}</span>
 										</div>
 										<div class="breakdown-item flex justify-content-between pt-2 border-top-1">
 											<span class="font-semibold">{{ 'remaining_via_payment_method' | translate }}:</span>
-											<span class="font-semibold">{{ getRemainingAfterCredit() | currency:currency:'symbol':'1.2-2' }}</span>
+											<span class="font-semibold">{{ orderTotals.remainingAfterCredit | currency:currency:'symbol':'1.2-2' }}</span>
 										</div>
 									</div>
 								</div>
@@ -719,8 +726,8 @@
 								<div class="field">
 									<label for="paymentAmount">
 										{{ 'payment_amount' | translate }}<span class="required-asterisk">*</span>
-										<span class="text-sm text-500 ml-2" *ngIf="useCredit && getCreditToUse() > 0">
-											({{ 'after_credit' | translate }}: {{ getRemainingAfterCredit() | currency:currency:'symbol':'1.2-2' }})
+										<span class="text-sm text-500 ml-2" *ngIf="useCredit && orderTotals.creditToUse > 0">
+											({{ 'after_credit' | translate }}: {{ orderTotals.remainingAfterCredit | currency:currency:'symbol':'1.2-2' }})
 										</span>
 									</label>
 								<p-inputNumber 
@@ -729,10 +736,10 @@
 									[currency]="currency"
 									[min]="0.01" 
 									[required]="showPaymentSection"
-									[disabled]="useCredit && getCreditToUse() > 0"
+									[disabled]="useCredit && orderTotals.creditToUse > 0"
 									(onInput)="onPaymentAmountChange()">
 								</p-inputNumber>
-									<small class="text-500" *ngIf="useCredit && getCreditToUse() > 0">
+									<small class="text-500" *ngIf="useCredit && orderTotals.creditToUse > 0">
 										{{ 'amount_automatically_adjusted_for_credit' | translate }}
 									</small>
 								</div>
@@ -851,24 +858,24 @@
 								<div class="payment-summary">
 									<div class="summary-row">
 										<span>{{ 'amount_due' | translate }}:</span>
-										<span>{{ currency }} {{ calculateTotalAmount() | number:'1.2-2' }}</span>
+										<span>{{ currency }} {{ orderTotals.total | number:'1.2-2' }}</span>
 									</div>
 									<div class="summary-row">
 										<span>{{ 'payment_applied' | translate }}:</span>
 										<span>{{ currency }} {{ payment.amount || 0 | number:'1.2-2' }}</span>
 									</div>
 									<div class="summary-row balance-row"
-										*ngIf="(payment.amount || 0) < calculateTotalAmount()">
+										*ngIf="(payment.amount || 0) < orderTotals.total">
 										<span>{{ 'balance_due' | translate }}:</span>
-										<span class="balance-due">{{ currency }} {{ calculateTotalAmount() -
+										<span class="balance-due">{{ currency }} {{ orderTotals.total -
 											(payment.amount
 											|| 0) | number:'1.2-2' }}</span>
 									</div>
 									<div class="summary-row balance-row"
-										*ngIf="(payment.amount || 0) > calculateTotalAmount()">
+										*ngIf="(payment.amount || 0) > orderTotals.total">
 										<span>{{ 'change_due' | translate }}:</span>
 										<span class="change-due">{{ currency }} {{ (payment.amount || 0) -
-											calculateTotalAmount() | number:'1.2-2' }}</span>
+											orderTotals.total | number:'1.2-2' }}</span>
 									</div>
 									</div>
 								</div>
@@ -894,11 +901,14 @@
 					<div class="ims-form-footer-total" aria-live="polite">
 						<span class="ims-form-footer-total__label">{{ 'total' | translate }}</span>
 						<span class="ims-form-footer-total__amount">
-							{{ currency }} {{ calculateTotalAmount() | number:'1.2-2' }}
+							{{ currency }} {{ orderTotals.total | number:'1.2-2' }}
 						</span>
 					</div>
 
-					<button pButton pRipple label="{{'save_button' | translate}}" icon="pi pi-check"
+					<button pButton pRipple icon="pi pi-check"
+						label="{{ isSaving && targetProducts.length > 1
+							? ('saving_order_lines' | translate:{ count: targetProducts.length })
+							: ('save_button' | translate) }}"
 						class="p-button-primary" (click)="saveOrder()" [loading]="isSaving"></button>
 				</div>
 			</ng-template>

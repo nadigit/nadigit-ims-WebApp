@@ -198,6 +198,28 @@
   margin-top: 0.125rem;
 }
 
+/* Long orders scroll virtually, which places every row at one measured height. A name or a price
+   label wrapping onto a second line would break that, so in that mode they stay on one line and
+   are cut with an ellipsis; the full name is in the title. */
+.order-lines--virtual .order-line-product__body,
+.order-lines--virtual .order-line-product__name-row {
+  min-width: 0;
+}
+
+.order-lines--virtual .order-line-product__name-row,
+.order-lines--virtual .order-line-price-meta {
+  flex-wrap: nowrap;
+}
+
+.order-lines--virtual .order-line-product__name,
+.order-lines--virtual .order-line-product__meta,
+.order-lines--virtual .order-line-price-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .order-line-product__hint {
   display: block;
   margin-top: 0.25rem;

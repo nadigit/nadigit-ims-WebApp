@@ -6039,6 +6039,8 @@
   "line_rule_label_placeholder": "مثال: خصم رصيد الأحشاء",
   "menu_advanced_group": "متقدم",
   "line_options_line_invalid": "اختر الخيارات المطلوبة لهذا البند.",
+  "saving_order_lines": "جارٍ حفظ {{count}} بندًا…",
+  "large_order_save_notice": "يحتوي هذا الطلب على {{count}} بندًا. يستغرق الحفظ بضع ثوانٍ - اترك النموذج مفتوحًا حتى ينتهي.",
   "line_options_required_for_line": "يرجى إكمال الخيارات المطلوبة لـ «{{product}}».",
   "line_option_max_reached": "يمكنك اختيار {{max}} خيار كحد أقصى هنا.",
   "line_options_none_for_product": "لا توجد خيارات متاحة لهذا الصنف.",

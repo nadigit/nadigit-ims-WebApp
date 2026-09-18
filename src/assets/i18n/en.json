@@ -6045,6 +6045,8 @@
   "line_rule_label_placeholder": "e.g. Entrails credit deduction",
   "menu_advanced_group": "Advanced",
   "line_options_line_invalid": "Select the required options for this line.",
+  "saving_order_lines": "Saving {{count}} lines…",
+  "large_order_save_notice": "This order has {{count}} lines. Saving takes a few seconds - keep the form open until it finishes.",
   "line_options_required_for_line": "Please complete the required options for \"{{product}}\".",
   "line_option_max_reached": "You can select at most {{max}} option(s) here.",
   "line_options_none_for_product": "No options available for this item.",
